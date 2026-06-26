@@ -23,7 +23,6 @@ const emptyProduct = {
   heart_notes: '',
   base_notes: '',
   image_url: '',
-  intensity: 'moderate',
   gender: 'unisex',
   featured: false,
   bestseller: false,
@@ -31,7 +30,6 @@ const emptyProduct = {
 }
 
 const categories = ['aquatic', 'aldehydic', 'amber', 'balsamic', 'oriental', 'gourmand', 'woody', 'other', 'leather', 'musky', 'spicy', 'sweet', 'tobacco', 'fruity', 'fougere', 'floral', 'citrus']
-const intensities = ['light', 'moderate', 'intense']
 const genders = ['unisex', 'feminine', 'masculine']
 
 export default function Admin() {
@@ -88,7 +86,6 @@ export default function Admin() {
   const [quantityToAdd, setQuantityToAdd] = useState('1')
   const [searchProductsText, setSearchProductsText] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
-  const [filterIntensity, setFilterIntensity] = useState('')
   const [filterGender, setFilterGender] = useState('')
   const selectedOrder = orders.find(o => o.id === selectedOrderId)
 
@@ -418,7 +415,6 @@ export default function Admin() {
       heart_notes: form.heart_notes.trim(),
       base_notes: form.base_notes.trim(),
       image_url: form.image_url.trim(),
-      intensity: form.intensity,
       gender: form.gender,
       featured: Boolean(form.featured),
       bestseller: Boolean(form.bestseller),
@@ -606,10 +602,7 @@ export default function Admin() {
       filtered = filtered.filter(p => p.category === filterCategory)
     }
 
-    // Filter by intensity
-    if (filterIntensity) {
-      filtered = filtered.filter(p => p.intensity === filterIntensity)
-    }
+    // intensity removed from filters
 
     // Filter by gender
     if (filterGender) {
@@ -617,7 +610,7 @@ export default function Admin() {
     }
 
     return filtered
-  }, [products, searchProductsText, filterCategory, filterIntensity, filterGender])
+  }, [products, searchProductsText, filterCategory, filterGender])
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 md:px-12 py-10 md:py-14">
@@ -900,12 +893,6 @@ export default function Admin() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Интенсивность</Label>
-                <select value={form.intensity} onChange={(e) => setField('intensity', e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                  {intensities.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </div>
-              <div className="grid gap-2">
                 <Label>Для кого</Label>
                 <select value={form.gender} onChange={(e) => setField('gender', e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                   {genders.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -1094,7 +1081,7 @@ export default function Admin() {
                       </div>
 
                       {/* Фильтры */}
-                      <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="grid grid-cols-2 gap-2 mb-4">
                         <div>
                           <select
                             value={filterCategory}
@@ -1104,18 +1091,6 @@ export default function Admin() {
                             <option value="">Все категории</option>
                             {categories.map((cat) => (
                               <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <select
-                            value={filterIntensity}
-                            onChange={(e) => setFilterIntensity(e.target.value)}
-                            className="h-9 rounded-md border border-input bg-transparent px-2 py-1 text-xs w-full"
-                          >
-                            <option value="">Все интенсивности</option>
-                            {intensities.map((int) => (
-                              <option key={int} value={int}>{int}</option>
                             ))}
                           </select>
                         </div>

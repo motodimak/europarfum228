@@ -30,11 +30,6 @@ const categoryLabels = {
   other: 'Другая',
 };
 
-const intensityLabels = {
-  light: 'Лёгкий',
-  moderate: 'Умеренный',
-  intense: 'Интенсивный',
-};
 
 const genderLabels = {
   unisex: 'Унисекс',
@@ -121,6 +116,8 @@ export default function ProductDetail() {
           product_price: product.price,
           product_image: product.image_url,
           product_volume: product.volume_ml,
+          product_category: product.category,
+          product_gender: product.gender,
         })
         return
       }
@@ -138,6 +135,8 @@ export default function ProductDetail() {
           product_price: product.price,
           product_image: product.image_url,
           product_volume: product.volume_ml,
+          product_category: product.category,
+          product_gender: product.gender,
         });
       }
     },
@@ -230,11 +229,7 @@ export default function ProductDetail() {
                 {categoryLabels[product.category]}
               </span>
             )}
-            {product.intensity && (
-              <span className="font-body text-[11px] tracking-wider uppercase px-3 py-1 rounded-full border border-border">
-                {intensityLabels[product.intensity]}
-              </span>
-            )}
+            {/* intensity removed */}
             {product.gender && (
               <span className="font-body text-[11px] tracking-wider uppercase px-3 py-1 rounded-full border border-border">
                 {genderLabels[product.gender]}
