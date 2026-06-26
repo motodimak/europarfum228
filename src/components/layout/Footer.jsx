@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-16 md:py-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-24">
           <div>
-            <h3 className="font-heading text-xl font-semibold mb-4">EURO PARFUM</h3>
+            <h3 className="font-heading text-xl font-semibold mb-4">EUROPA PARFUM</h3>
             <p className="font-body text-sm text-muted-foreground leading-relaxed max-w-xs">
               Искусство парфюмерии, воплощённое в каждом флаконе. Откройте мир ароматов, созданных для тех, кто ценит подлинную роскошь.
             </p>
