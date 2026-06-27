@@ -5,7 +5,7 @@ const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/send
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} ₽`
 
 const buildOrderMessage = ({ fullName, phone, address, deliveryDate, deliveryTimeSlot, paymentMethod, total, items, clientContact, clientContactType }) => {
-  const header = ['📦 Новая заявка на заказ']
+  const header = ['📦 Новая заявка на заказ 0_0']
   const clientInfo = [`Имя: ${fullName || '—'}`]
   if (phone) {
     clientInfo.push(`Телефон: ${phone}`)
