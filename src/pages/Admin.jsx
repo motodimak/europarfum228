@@ -67,6 +67,7 @@ export default function Admin() {
   const [selectedId, setSelectedId] = useState(null)
   const [form, setForm] = useState(emptyProduct)
   const [status, setStatus] = useState('')
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState([])
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkDiscountPercent, setBulkDiscountPercent] = useState('')
@@ -367,13 +368,18 @@ export default function Admin() {
 
   const saveProduct = async (event) => {
     event.preventDefault()
+    if (isSavingProduct) return
+
+    const priceValue = Number(form.price)
+    const salePriceValue = form.sale_price === '' ? null : Number(form.sale_price)
+    const volumeValue = form.volume_ml === '' ? null : Number(form.volume_ml)
 
     const payload = {
       name: form.name.trim(),
       brand: form.brand.trim(),
-      price: Number(form.price),
-      sale_price: form.sale_price === '' ? null : Number(form.sale_price),
-      volume_ml: form.volume_ml === '' ? null : Number(form.volume_ml),
+      price: priceValue,
+      sale_price: salePriceValue,
+      volume_ml: volumeValue,
       description: form.description.trim(),
       category: form.category,
       top_notes: form.top_notes.trim(),
@@ -386,24 +392,45 @@ export default function Admin() {
       popular: Boolean(form.popular),
     }
 
-    if (!payload.name || !payload.brand || Number.isNaN(payload.price)) {
+    if (!payload.name || !payload.brand || Number.isNaN(payload.price) || payload.price <= 0) {
       setStatus('Заполните имя, бренд и цену.')
       return
     }
 
-    if (selectedId) {
-      await base44.entities.Product.update(selectedId, payload)
-    } else {
-      await base44.entities.Product.create(payload)
+    if (payload.sale_price != null && (Number.isNaN(payload.sale_price) || payload.sale_price < 0)) {
+      setStatus('Цена со скидкой должна быть корректным числом.')
+      return
     }
-    setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
-    await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
-    await queryClient.invalidateQueries({ queryKey: ['products'] })
-    await queryClient.invalidateQueries({ queryKey: ['featured-products'] })
-    await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
-    await queryClient.invalidateQueries({ queryKey: ['category-products'] })
-    setSelectedId(null)
-    setForm(emptyProduct)
+
+    if (payload.volume_ml != null && (Number.isNaN(payload.volume_ml) || payload.volume_ml <= 0)) {
+      setStatus('Объём должен быть больше 0.')
+      return
+    }
+
+    setIsSavingProduct(true)
+    setStatus('Сохранение позиции...')
+
+    try {
+      if (selectedId) {
+        await base44.entities.Product.update(selectedId, payload)
+      } else {
+        await base44.entities.Product.create(payload)
+      }
+
+      setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
+      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+      await queryClient.invalidateQueries({ queryKey: ['featured-products'] })
+      await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
+      await queryClient.invalidateQueries({ queryKey: ['category-products'] })
+      setSelectedId(null)
+      setForm(emptyProduct)
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || 'Не удалось сохранить позицию. Проверьте права доступа и поля формы.'
+      setStatus(`Ошибка сохранения: ${message}`)
+    } finally {
+      setIsSavingProduct(false)
+    }
   }
 
   const deleteCurrent = async () => {
@@ -858,7 +885,10 @@ export default function Admin() {
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button type="submit"><PencilLine className="w-4 h-4" />{selectedId ? 'Сохранить изменения' : 'Добавить позицию'}</Button>
+              <Button type="submit" disabled={isSavingProduct}>
+                {isSavingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <PencilLine className="w-4 h-4" />}
+                {isSavingProduct ? 'Сохраняю...' : (selectedId ? 'Сохранить изменения' : 'Добавить позицию')}
+              </Button>
               {selectedId && <Button type="button" variant="outline" onClick={() => window.confirm('Удалить эту позицию?') && deleteCurrent()}><Trash2 className="w-4 h-4" /> Удалить</Button>}
             </div>
           </form>
