@@ -684,7 +684,7 @@ export default function Admin() {
       {orderStatusUpdate && <div className="mb-6 rounded-lg border border-green-200/50 bg-green-50 px-4 py-3 text-sm text-green-800">{orderStatusUpdate}</div>}
       {activeTab === 'products' && (
         <>
-          <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
+          {false && <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
                 <h2 className="font-heading text-xl font-semibold">Популярные позиции</h2>
@@ -727,7 +727,7 @@ export default function Admin() {
               <p className="text-sm text-muted-foreground">Выбрано: {selectedPopularIds.length}/8</p>
               {popularStatus && <div className="rounded-lg border border-border/50 bg-secondary/40 px-4 py-3 text-sm">{popularStatus}</div>}
             </div>
-          </div>
+          </div>}
 
           <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">

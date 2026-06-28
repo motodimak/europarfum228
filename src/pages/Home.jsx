@@ -2,7 +2,6 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
 import HeroSection from '../components/home/HeroSection';
-import FeaturedSection from '../components/home/FeaturedSection';
 import CategoriesSection from '../components/home/CategoriesSection';
 import PopularPerfumesSection from '../components/home/PopularPerfumesSection';
 
@@ -18,6 +17,16 @@ const fetchAllProducts = async () => {
   return data || []
 }
 
+const isEnabledFlag = (value) => {
+  if (value === true) return true
+  if (value === 1) return true
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === 'true' || normalized === '1' || normalized === 'yes'
+  }
+  return false
+}
+
 export default function Home() {
   const { data: remoteProducts = [] } = useQuery({
     queryKey: ['all-products-home'],
@@ -26,18 +35,13 @@ export default function Home() {
 
   const mergedProducts = React.useMemo(() => remoteProducts, [remoteProducts])
 
-  const bestsellerProducts = React.useMemo(() => {
-    return mergedProducts.filter((product) => product.bestseller).slice(0, 8)
-  }, [mergedProducts])
-
   const popularProducts = React.useMemo(() => {
-    return mergedProducts.filter((product) => product.popular).slice(0, 8)
+    return mergedProducts.filter((product) => isEnabledFlag(product.popular)).slice(0, 8)
   }, [mergedProducts])
 
   return (
     <div>
       <HeroSection heroImage={HERO_IMAGE} />
-      {bestsellerProducts.length > 0 && <FeaturedSection products={bestsellerProducts} />}
       {popularProducts.length > 0 && <PopularPerfumesSection products={popularProducts} />}
       <CategoriesSection />
     </div>
