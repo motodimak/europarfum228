@@ -7,6 +7,7 @@ import { ArrowLeft, ShoppingBag, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isLocalProductId, mergeProducts } from '@/lib/productStore';
 import { addLocalCartItem } from '@/lib/cartStore';
+import { getEffectivePrice, hasDiscount } from '@/lib/pricing';
 import ReviewStars from '@/components/ReviewStars';
 import { getAverageRating, getReviewCount, getUserReview, saveProductReview, getProductReviews } from '@/lib/reviewStore';
 
@@ -113,7 +114,7 @@ export default function ProductDetail() {
         addLocalCartItem({
           product_id: productId,
           product_name: product.name,
-          product_price: product.price,
+          product_price: effectivePrice,
           product_image: product.image_url,
           product_volume: product.volume_ml,
           product_category: product.category,
@@ -126,13 +127,19 @@ export default function ProductDetail() {
       if (existingCart.length > 0) {
         await base44.entities.CartItem.update(existingCart[0].id, {
           quantity: (existingCart[0].quantity || 1) + 1,
+          product_price: effectivePrice,
+          product_name: product.name,
+          product_image: product.image_url,
+          product_volume: product.volume_ml,
+          product_category: product.category,
+          product_gender: product.gender,
         });
       } else {
         await base44.entities.CartItem.create({
           product_id: productId,
           quantity: 1,
           product_name: product.name,
-          product_price: product.price,
+          product_price: effectivePrice,
           product_image: product.image_url,
           product_volume: product.volume_ml,
           product_category: product.category,
@@ -171,6 +178,8 @@ export default function ProductDetail() {
     { label: 'Ноты сердца', value: product.heart_notes },
     { label: 'Базовые ноты', value: product.base_notes },
   ].filter(n => n.value);
+  const effectivePrice = getEffectivePrice(product)
+  const discounted = hasDiscount(product)
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 md:py-16">
@@ -233,8 +242,13 @@ export default function ProductDetail() {
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="flex items-baseline gap-4">
-              <span className="font-heading text-2xl md:text-3xl font-semibold">
-                {(product.price || 0).toLocaleString('ru-RU')} ₽
+              {discounted && (
+                <span className="font-body text-base text-muted-foreground line-through">
+                  {Number(product.price || 0).toLocaleString('ru-RU')} ₽
+                </span>
+              )}
+              <span className="font-heading text-2xl md:text-3xl font-semibold text-primary">
+                {Number(effectivePrice || 0).toLocaleString('ru-RU')} ₽
               </span>
               {product.volume_ml && (
                 <span className="font-body text-sm text-muted-foreground">{product.volume_ml} мл</span>

@@ -34,7 +34,7 @@ export default function CartDrawer({ open, onClose, items = [] }) {
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
-  const total = items.reduce((sum, item) => sum + (item.product_price || 0) * (item.quantity || 1), 0);
+  const total = items.reduce((sum, item) => sum + Number(item.product_price || 0) * (item.quantity || 1), 0);
 
   return (
     <AnimatePresence>
@@ -82,7 +82,7 @@ export default function CartDrawer({ open, onClose, items = [] }) {
                           <p className="text-xs text-muted-foreground mt-0.5">{item.product_volume} мл</p>
                         )}
                         <p className="font-body text-sm font-semibold mt-1">
-                          {(item.product_price || 0).toLocaleString('ru-RU')} ₽
+                          {Number(item.product_price || 0).toLocaleString('ru-RU')} ₽
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <button

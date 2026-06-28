@@ -39,7 +39,7 @@ export default function Checkout() {
   const [done, setDone] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const total = cartItems.reduce((sum, item) => sum + (item.product_price || 0) * (item.quantity || 1), 0);
+  const total = cartItems.reduce((sum, item) => sum + Number(item.product_price || 0) * (item.quantity || 1), 0);
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -291,7 +291,7 @@ export default function Checkout() {
             {cartItems.map(item => (
               <div key={item.id} className="flex justify-between items-center font-body text-sm">
                 <span className="text-foreground">{item.product_name} <span className="text-muted-foreground">×{item.quantity || 1}</span></span>
-                <span className="font-medium">{((item.product_price || 0) * (item.quantity || 1)).toLocaleString('ru-RU')} ₽</span>
+                <span className="font-medium">{(Number(item.product_price || 0) * (item.quantity || 1)).toLocaleString('ru-RU')} ₽</span>
               </div>
             ))}
             <div className="flex justify-between items-center pt-3 border-t border-border/40">
