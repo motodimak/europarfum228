@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ADMIN_CODE, createAdminSession, isAdminCode } from '@/lib/adminAuth'
+import { base44 } from '@/api/base44Client'
 
 export default function ClientRegisterDialog() {
   const [open, setOpen] = useState(false)
@@ -26,7 +27,7 @@ export default function ClientRegisterDialog() {
   const [contactValue, setContactValue] = useState("")
   const [error, setError] = useState("")
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError("")
 
@@ -35,10 +36,6 @@ export default function ClientRegisterDialog() {
       setError('Введите контакт.')
       return
     }
-
-    const usersRaw = localStorage.getItem('users')
-    let users = []
-    try { users = usersRaw ? JSON.parse(usersRaw) : [] } catch (err) { users = [] }
 
     if (mode === 'register') {
       if (contactType === 'other' && isAdminCode(contactValue)) {
@@ -51,16 +48,30 @@ export default function ClientRegisterDialog() {
         return
       }
 
-      // Check duplicates by contactType + contactValue
-      const exists = users.find(u => u.contactType === contactType && u.contactValue === contactValue)
-      if (exists) {
-        setError('Пользователь с такими данными уже зарегистрирован. Войдите в аккаунт.')
+      try {
+        const existingClients = await base44.entities.Client.filter({ contactType, contactValue }, '-created_date', 1)
+        if (existingClients?.length > 0) {
+          setError('Пользователь с такими данными уже зарегистрирован. Войдите в аккаунт.')
+          return
+        }
+      } catch (err) {
+        setError('Не удалось проверить пользователя. Попробуйте снова.')
         return
       }
 
-      const newUser = { id: Date.now().toString(), firstName, lastName, contactType, contactValue }
-      users.push(newUser)
-      try { localStorage.setItem('users', JSON.stringify(users)) } catch (err) {}
+      let newUser
+      try {
+        newUser = await base44.entities.Client.create({
+          firstName,
+          lastName,
+          contactType,
+          contactValue,
+        })
+      } catch (err) {
+        setError('Не удалось зарегистрироваться. Проверьте соединение и попробуйте снова.')
+        return
+      }
+
       try { localStorage.setItem('clientRegistration', JSON.stringify(newUser)) } catch (err) {}
       // notify other components
       try { window.dispatchEvent(new CustomEvent('clientRegistrationChanged', { detail: newUser })) } catch (e) {}
@@ -77,8 +88,15 @@ export default function ClientRegisterDialog() {
         return
       }
 
-      // login
-      const found = users.find(u => u.contactType === contactType && u.contactValue === contactValue)
+      let found = null
+      try {
+        const clients = await base44.entities.Client.filter({ contactType, contactValue }, '-created_date', 1)
+        found = clients?.[0] || null
+      } catch (err) {
+        setError('Не удалось выполнить вход. Проверьте соединение и попробуйте снова.')
+        return
+      }
+
       if (!found) {
         setError('Пользователь не найден. Проверьте данные или зарегистрируйтесь.')
         return

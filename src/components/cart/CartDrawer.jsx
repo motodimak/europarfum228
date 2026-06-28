@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { isLocalCartItemId, removeLocalCartItem, updateLocalCartItemQuantity } from '@/lib/cartStore';
 
 export default function CartDrawer({ open, onClose, items = [] }) {
   const queryClient = useQueryClient();
@@ -13,24 +12,16 @@ export default function CartDrawer({ open, onClose, items = [] }) {
 
   const updateQuantity = async (item, delta) => {
     const newQty = (item.quantity || 1) + delta;
-    if (isLocalCartItemId(item.id)) {
-      updateLocalCartItemQuantity(item.id, newQty)
+    if (newQty <= 0) {
+      await base44.entities.CartItem.delete(item.id);
     } else {
-      if (newQty <= 0) {
-        await base44.entities.CartItem.delete(item.id);
-      } else {
-        await base44.entities.CartItem.update(item.id, { quantity: newQty });
-      }
+      await base44.entities.CartItem.update(item.id, { quantity: newQty });
     }
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
   const removeItem = async (item) => {
-    if (isLocalCartItemId(item.id)) {
-      removeLocalCartItem(item.id)
-    } else {
-      await base44.entities.CartItem.delete(item.id);
-    }
+    await base44.entities.CartItem.delete(item.id);
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 

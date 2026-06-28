@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import ProductCard from '../components/products/ProductCard';
 import CatalogFilters from '../components/catalog/CatalogFilters';
 import { Loader2 } from 'lucide-react';
-import { mergeProducts } from '@/lib/productStore';
 
 export default function Catalog() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -20,7 +19,7 @@ export default function Catalog() {
   });
 
   const filtered = useMemo(() => {
-    return mergeProducts(products).filter((p) => {
+    return products.filter((p) => {
       const catMatch = category === 'all' || p.category === category;
       const genMatch = gender === 'all' || p.gender === gender;
       return catMatch && genMatch;

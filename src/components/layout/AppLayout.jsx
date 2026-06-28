@@ -6,21 +6,14 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import CartDrawer from '../cart/CartDrawer';
 import LightPillar from '../background/LightPillar';
-import { mergeCartItems } from '@/lib/cartStore';
 
 export default function AppLayout() {
   const [cartOpen, setCartOpen] = useState(false);
 
   const { data: cartItems = [] } = useQuery({
     queryKey: ['cart'],
-    queryFn: async () => {
-      try {
-        const remoteItems = await base44.entities.CartItem.list()
-        return mergeCartItems(remoteItems)
-      } catch (error) {
-        return mergeCartItems([])
-      }
-    },
+    queryFn: () => base44.entities.CartItem.list(),
+    retry: 1,
   });
 
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
-import { clearLocalCart, isLocalCartItemId, mergeCartItems } from '@/lib/cartStore';
 import { sendTelegramOrderNotification } from '@/lib/telegram';
 
 export default function Checkout() {
@@ -17,14 +16,8 @@ export default function Checkout() {
 
   const { data: cartItems = [] } = useQuery({
     queryKey: ['cart'],
-    queryFn: async () => {
-      try {
-        const remoteItems = await base44.entities.CartItem.list()
-        return mergeCartItems(remoteItems)
-      } catch (error) {
-        return mergeCartItems([])
-      }
-    },
+    queryFn: () => base44.entities.CartItem.list(),
+    retry: 1,
   });
 
   const [form, setForm] = useState({
@@ -57,9 +50,8 @@ export default function Checkout() {
     const clientContactType = clientInfo?.contactType || 'unknown';
     const clientContactValue = clientInfo?.contactValue || '';
     const clientPhone = form.phone || (clientContactType === 'phone' ? clientContactValue : '');
-    let createdOrder = null;
     try {
-      createdOrder = await base44.entities.Order.create({
+      await base44.entities.Order.create({
         ...form,
         total_amount: total,
         items_snapshot: JSON.stringify(cartItems),
@@ -70,29 +62,9 @@ export default function Checkout() {
         client_phone: clientPhone,
       });
     } catch (error) {
-      // Fallback to local order storage when backend is unavailable
-      const localOrder = {
-        id: `local-order-${Date.now()}`,
-        ...form,
-        total_amount: total,
-        items_snapshot: JSON.stringify(cartItems),
-        status: 'new',
-        created_at: new Date().toISOString(),
-        client_identifier: clientIdentifier,
-        client_contact_type: clientContactType,
-        client_contact_value: clientContactValue,
-        client_phone: clientPhone,
-      };
-      try {
-        const raw = localStorage.getItem('localOrders');
-        const existing = raw ? JSON.parse(raw) : [];
-        localStorage.setItem('localOrders', JSON.stringify([localOrder, ...existing]));
-        createdOrder = localOrder;
-      } catch (storageError) {
-        setSubmitError('Не удалось оформить заказ. Попробуйте еще раз.');
-        setLoading(false);
-        return;
-      }
+      setSubmitError('Не удалось оформить заказ. Проверьте соединение и попробуйте снова.');
+      setLoading(false);
+      return;
     }
 
     try {
@@ -114,16 +86,11 @@ export default function Checkout() {
 
     try {
       // Очищаем корзину
-      await Promise.all(
-        cartItems
-          .filter(item => !isLocalCartItemId(item.id))
-          .map(item => base44.entities.CartItem.delete(item.id))
-      );
+      await Promise.all(cartItems.map(item => base44.entities.CartItem.delete(item.id)));
     } catch (error) {
       // Non-critical for success page
     }
 
-    clearLocalCart();
     queryClient.invalidateQueries({ queryKey: ['cart'] });
 
     setLoading(false);

@@ -5,8 +5,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { isLocalProductId, mergeProducts } from '@/lib/productStore';
-import { addLocalCartItem } from '@/lib/cartStore';
 import { getEffectivePrice, hasDiscount } from '@/lib/pricing';
 import ReviewStars from '@/components/ReviewStars';
 import { getAverageRating, getReviewCount, getUserReview, saveProductReview, getProductReviews } from '@/lib/reviewStore';
@@ -44,39 +42,19 @@ export default function ProductDetail() {
   const productId = pathParts[pathParts.length - 1];
 
   const queryClient = useQueryClient();
-  const localOnly = isLocalProductId(productId);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['product', productId],
     queryFn: () => base44.entities.Product.filter({ id: productId }),
-    enabled: !localOnly,
+    retry: 1,
   });
 
-  const product = React.useMemo(() => {
-    if (localOnly) {
-      return mergeProducts([]).find((item) => item.id === productId)
-    }
-
-    return mergeProducts(products).find((item) => item.id === productId)
-  }, [products, productId, localOnly]);
+  const product = React.useMemo(() => products.find((item) => item.id === productId), [products, productId]);
 
   const userInfoRaw = typeof window === 'undefined' ? null : localStorage.getItem('clientRegistration')
   const userInfo = userInfoRaw ? JSON.parse(userInfoRaw) : null
 
-  const confirmedOrderIds = React.useMemo(() => {
-    if (typeof window === 'undefined') return []
-    const rawOrders = localStorage.getItem('localOrders')
-    const localOrders = rawOrders ? JSON.parse(rawOrders) : []
-    return localOrders
-      .filter((order) => (order.status || '').toLowerCase() === 'confirmed')
-      .flatMap((order) => {
-        try {
-          return JSON.parse(order.items_snapshot || '[]').map((item) => item.product_id)
-        } catch {
-          return []
-        }
-      })
-  }, [])
+  const confirmedOrderIds = React.useMemo(() => [], [])
 
   const currentReview = getUserReview(productId, userInfo?.id)
   const [reviewRating, setReviewRating] = React.useState(currentReview?.rating || 0)
@@ -110,19 +88,6 @@ export default function ProductDetail() {
 
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      if (localOnly) {
-        addLocalCartItem({
-          product_id: productId,
-          product_name: product.name,
-          product_price: effectivePrice,
-          product_image: product.image_url,
-          product_volume: product.volume_ml,
-          product_category: product.category,
-          product_gender: product.gender,
-        })
-        return
-      }
-
       const existingCart = await base44.entities.CartItem.filter({ product_id: productId });
       if (existingCart.length > 0) {
         await base44.entities.CartItem.update(existingCart[0].id, {

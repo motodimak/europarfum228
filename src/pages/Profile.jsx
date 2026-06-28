@@ -26,34 +26,13 @@ export default function Profile() {
         // Get current client identifier
         const clientIdentifier = clientInfo?.contactValue || ''
 
-        // Load orders from backend and localStorage
+        // Load orders from backend only
         let allOrders = []
-
-        // Try backend orders
-        try {
-          const backendOrders = await base44.entities.Order.list()
-          if (backendOrders && Array.isArray(backendOrders)) {
-            allOrders = clientIdentifier
-              ? backendOrders.filter((o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier)
-              : backendOrders
-          }
-        } catch (error) {
-          // Backend unavailable, will fall back to localStorage
-        }
-
-        // Add local orders from localStorage
-        try {
-          const localOrdersRaw = localStorage.getItem('localOrders')
-          const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-          // Filter by current client's identifier if available
-          const filteredLocal = clientIdentifier 
-            ? localOrders.filter(
-                (o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier
-              )
-            : localOrders
-          allOrders = [...allOrders, ...filteredLocal]
-        } catch (error) {
-          // Ignore localStorage errors
+        const backendOrders = await base44.entities.Order.list()
+        if (backendOrders && Array.isArray(backendOrders)) {
+          allOrders = clientIdentifier
+            ? backendOrders.filter((o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier)
+            : backendOrders
         }
 
         // Sort by created_at descending (newest first)

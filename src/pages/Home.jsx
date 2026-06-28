@@ -5,7 +5,6 @@ import HeroSection from '../components/home/HeroSection';
 import FeaturedSection from '../components/home/FeaturedSection';
 import CategoriesSection from '../components/home/CategoriesSection';
 import PopularPerfumesSection from '../components/home/PopularPerfumesSection';
-import { mergeProducts } from '@/lib/productStore';
 
 const HERO_IMAGE = 'https://media.base44.com/images/public/69ede4f3bbf6ffb09c345510/267f53f86_generated_84f14b21.png';
 
@@ -15,7 +14,7 @@ export default function Home() {
     queryFn: () => base44.entities.Product.list('-created_date', 300),
   });
 
-  const mergedProducts = React.useMemo(() => mergeProducts(remoteProducts), [remoteProducts])
+  const mergedProducts = React.useMemo(() => remoteProducts, [remoteProducts])
 
   const bestsellerProducts = React.useMemo(() => {
     return mergedProducts.filter((product) => product.bestseller).slice(0, 8)

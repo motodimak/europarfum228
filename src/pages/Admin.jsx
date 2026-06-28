@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ChartContainer } from '@/components/ui/chart'
 import { Loader2, Plus, Trash2, Upload, PencilLine, Shield, Package, CheckCircle2, Clock, BarChart } from 'lucide-react'
 import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts'
-import { createLocalProductId, mergeProducts, removeProduct, upsertProduct } from '@/lib/productStore'
+import { getEffectivePrice } from '@/lib/pricing'
 import { sendTelegramOrderNotification } from '@/lib/telegram'
 
 const emptyProduct = {
@@ -38,45 +38,20 @@ export default function Admin() {
   
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-products'],
-    queryFn: async () => {
-      try {
-        return mergeProducts(await base44.entities.Product.list('-created_date', 300))
-      } catch {
-        return mergeProducts([])
-      }
-    },
+    queryFn: () => base44.entities.Product.list('-created_date', 300),
+    retry: 1,
   })
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['admin-orders'],
-    queryFn: async () => {
-      let allOrders = []
-      try {
-        const backendOrders = await base44.entities.Order.list()
-        if (backendOrders && Array.isArray(backendOrders)) {
-          allOrders = backendOrders
-        }
-      } catch (error) {
-        // Backend unavailable
-      }
+    queryFn: () => base44.entities.Order.list('-created_date', 500),
+    retry: 1,
+  })
 
-      try {
-        const localOrdersRaw = localStorage.getItem('localOrders')
-        const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-        allOrders = [...allOrders, ...localOrders]
-      } catch (error) {
-        // Ignore localStorage errors
-      }
-
-      // Sort by created_at descending
-      allOrders.sort((a, b) => {
-        const dateA = new Date(a.created_at || 0)
-        const dateB = new Date(b.created_at || 0)
-        return dateB - dateA
-      })
-
-      return allOrders
-    },
+  const { data: siteVisits = [] } = useQuery({
+    queryKey: ['admin-site-visits'],
+    queryFn: () => base44.entities.SiteVisit.list('-created_date', 2000),
+    retry: 1,
   })
 
   const [selectedOrderId, setSelectedOrderId] = useState(null)
@@ -104,14 +79,6 @@ export default function Admin() {
   const [bestsellerSearch, setBestsellerSearch] = useState('')
   const [popularStatus, setPopularStatus] = useState('')
   const [bestsellerStatus, setBestsellerStatus] = useState('')
-
-  const parseJson = (raw, fallback) => {
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return fallback
-    }
-  }
 
   const getLastDays = (count) => {
     const result = []
@@ -182,17 +149,20 @@ export default function Admin() {
     }))
   }, [orders])
 
-  const totalVisits = useMemo(() => {
-    return Number(localStorage.getItem('siteVisits') || 0)
-  }, [])
+  const totalVisits = useMemo(() => siteVisits.length, [siteVisits])
 
   const visitsHistory = useMemo(() => {
-    const history = parseJson(localStorage.getItem('siteVisitsHistory'), {})
+    const map = {}
+    siteVisits.forEach((visit) => {
+      const iso = String(visit.created_at || '').slice(0, 10)
+      if (!iso) return
+      map[iso] = (map[iso] || 0) + 1
+    })
     return getLastDays(7).map((day) => ({
       date: day.label,
-      visits: Number(history[day.iso] || 0),
+      visits: Number(map[day.iso] || 0),
     }))
-  }, [])
+  }, [siteVisits])
 
   const statusChartData = useMemo(() => {
     return Object.entries(statusCounts).map(([status, count]) => ({
@@ -230,22 +200,20 @@ export default function Admin() {
     const percent = Number(bulkDiscountPercent)
     const priceValue = bulkPrice.trim() === '' ? null : Number(bulkPrice)
 
-    products.forEach((product) => {
+    await Promise.all(products.map(async (product) => {
       if (!selectedProductIds.includes(product.id)) return
       const price = priceValue != null && !Number.isNaN(priceValue) ? priceValue : product.price
       const sale_price = !Number.isNaN(percent) && percent > 0 && percent < 100
         ? Math.round(price * (100 - percent) / 100)
         : product.sale_price || null
 
-      const updated = {
-        ...product,
+      await base44.entities.Product.update(product.id, {
         price,
         sale_price: sale_price === null ? null : sale_price,
         popular: bulkSetPopular ? true : product.popular,
         bestseller: bulkSetBestseller ? true : product.bestseller,
-      }
-      upsertProduct(updated)
-    })
+      })
+    }))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -347,10 +315,9 @@ export default function Admin() {
       return
     }
 
-    products.forEach((product) => {
-      const updated = { ...product, popular: selectedPopularIds.includes(product.id) }
-      upsertProduct(updated)
-    })
+    await Promise.all(products.map((product) =>
+      base44.entities.Product.update(product.id, { popular: selectedPopularIds.includes(product.id) })
+    ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -365,10 +332,9 @@ export default function Admin() {
       return
     }
 
-    products.forEach((product) => {
-      const updated = { ...product, bestseller: selectedBestsellerIds.includes(product.id) }
-      upsertProduct(updated)
-    })
+    await Promise.all(products.map((product) =>
+      base44.entities.Product.update(product.id, { bestseller: selectedBestsellerIds.includes(product.id) })
+    ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -403,7 +369,6 @@ export default function Admin() {
     event.preventDefault()
 
     const payload = {
-      id: selectedId || createLocalProductId(),
       name: form.name.trim(),
       brand: form.brand.trim(),
       price: Number(form.price),
@@ -426,7 +391,11 @@ export default function Admin() {
       return
     }
 
-    upsertProduct(payload)
+    if (selectedId) {
+      await base44.entities.Product.update(selectedId, payload)
+    } else {
+      await base44.entities.Product.create(payload)
+    }
     setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['products'] })
@@ -439,7 +408,7 @@ export default function Admin() {
 
   const deleteCurrent = async () => {
     if (!selectedId) return
-    removeProduct(selectedId)
+    await base44.entities.Product.delete(selectedId)
     setStatus('Позиция удалена')
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['products'] })
@@ -452,24 +421,9 @@ export default function Admin() {
 
   const updateOrderStatus = async (newStatus) => {
     if (!selectedOrderId) return
-    
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, { status: newStatus })
-      setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].status = newStatus
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-        setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
-      } else {
-        setOrderStatusUpdate('Ошибка: заказ не найден')
-      }
-    }
+
+    await base44.entities.Order.update(selectedOrderId, { status: newStatus })
+    setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
 
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
     setTimeout(() => setOrderStatusUpdate(''), 3000)
@@ -520,30 +474,17 @@ export default function Admin() {
       product_id: product.id,
       product_name: product.name,
       quantity: parseInt(quantityToAdd) || 1,
-      product_price: product.price
+      product_price: getEffectivePrice(product)
     }
 
     const updatedItems = [...currentItems, newItem]
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount + (newItem.product_price * newItem.quantity)
 
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, {
-        items_snapshot: updatedItemsSnapshot,
-        total_amount: newTotal
-      })
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].items_snapshot = updatedItemsSnapshot
-        localOrders[idx].total_amount = newTotal
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-      }
-    }
+    await base44.entities.Order.update(selectedOrderId, {
+      items_snapshot: updatedItemsSnapshot,
+      total_amount: newTotal
+    })
 
     setOrderStatusUpdate(`Товар добавлен в заказ`)
     setSelectedProductToAdd('')
@@ -561,23 +502,10 @@ export default function Admin() {
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount - ((removedItem.product_price || 0) * (removedItem.quantity || 1))
 
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, {
-        items_snapshot: updatedItemsSnapshot,
-        total_amount: Math.max(0, newTotal)
-      })
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].items_snapshot = updatedItemsSnapshot
-        localOrders[idx].total_amount = Math.max(0, newTotal)
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-      }
-    }
+    await base44.entities.Order.update(selectedOrderId, {
+      items_snapshot: updatedItemsSnapshot,
+      total_amount: Math.max(0, newTotal)
+    })
 
     setOrderStatusUpdate(`Товар удален из заказа`)
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
