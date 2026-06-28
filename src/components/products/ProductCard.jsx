@@ -26,6 +26,9 @@ const categoryLabels = {
 
 export default function ProductCard({ product, index = 0 }) {
   const hasSale = product.sale_price && product.sale_price < product.price
+  const discountPercent = hasSale
+    ? Math.round(((product.price - product.sale_price) / product.price) * 100)
+    : 0
 
   return (
     <motion.div
@@ -68,15 +71,20 @@ export default function ProductCard({ product, index = 0 }) {
             <ReviewStars rating={getAverageRating(product.id)} size={14} />
             <span>{getAverageRating(product.id).toFixed(1)}</span>
           </div>
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3 pt-1 flex-wrap">
             {hasSale ? (
               <>
                 <span className="font-body text-sm text-muted-foreground/85 line-through">
                   {(product.price || 0).toLocaleString('ru-RU')} ₽
                 </span>
-                <span className="font-body text-sm font-semibold text-emerald-600">
+                <span className="font-body text-lg md:text-xl font-extrabold text-[#0a7a63] tracking-tight leading-none px-1.5 py-0.5 rounded-md bg-[#0a7a63]/10">
                   {(product.sale_price || 0).toLocaleString('ru-RU')} ₽
                 </span>
+                {discountPercent > 0 && (
+                  <span className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-[#7b2e1f] px-2.5 py-1 rounded-full border border-[#b56f5f]/45 bg-[#f1d7cf]/65">
+                    Скидка -{discountPercent}%
+                  </span>
+                )}
               </>
             ) : (
               <span className="font-body text-sm font-semibold">
