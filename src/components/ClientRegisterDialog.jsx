@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ADMIN_CODE, createAdminSession, isAdminCode } from '@/lib/adminAuth'
-import { base44 } from '@/api/base44Client'
+import { supabase } from '@/api/supabaseClient'
 
 export default function ClientRegisterDialog() {
   const [open, setOpen] = useState(false)
@@ -49,7 +49,13 @@ export default function ClientRegisterDialog() {
       }
 
       try {
-        const existingClients = await base44.entities.Client.filter({ contactType, contactValue }, '-created_date', 1)
+        const { data: existingClients, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('contact_type', contactType)
+          .eq('contact_value', contactValue)
+          .limit(1)
+        if (error) throw error
         if (existingClients?.length > 0) {
           setError('Пользователь с такими данными уже зарегистрирован. Войдите в аккаунт.')
           return
@@ -61,12 +67,18 @@ export default function ClientRegisterDialog() {
 
       let newUser
       try {
-        newUser = await base44.entities.Client.create({
-          firstName,
-          lastName,
-          contactType,
-          contactValue,
-        })
+        const { data, error } = await supabase
+          .from('clients')
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            contact_type: contactType,
+            contact_value: contactValue,
+          })
+          .select('*')
+          .single()
+        if (error) throw error
+        newUser = data
       } catch (err) {
         setError('Не удалось зарегистрироваться. Проверьте соединение и попробуйте снова.')
         return
@@ -90,7 +102,13 @@ export default function ClientRegisterDialog() {
 
       let found = null
       try {
-        const clients = await base44.entities.Client.filter({ contactType, contactValue }, '-created_date', 1)
+        const { data: clients, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('contact_type', contactType)
+          .eq('contact_value', contactValue)
+          .limit(1)
+        if (error) throw error
         found = clients?.[0] || null
       } catch (err) {
         setError('Не удалось выполнить вход. Проверьте соединение и попробуйте снова.')

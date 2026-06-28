@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,15 +13,15 @@ export default function CartDrawer({ open, onClose, items = [] }) {
   const updateQuantity = async (item, delta) => {
     const newQty = (item.quantity || 1) + delta;
     if (newQty <= 0) {
-      await base44.entities.CartItem.delete(item.id);
+      await supabase.from('carts').delete().eq('id', item.id);
     } else {
-      await base44.entities.CartItem.update(item.id, { quantity: newQty });
+      await supabase.from('carts').update({ quantity: newQty }).eq('id', item.id);
     }
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
   const removeItem = async (item) => {
-    await base44.entities.CartItem.delete(item.id);
+    await supabase.from('carts').delete().eq('id', item.id);
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 

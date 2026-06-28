@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import CartDrawer from '../cart/CartDrawer';
@@ -12,7 +12,11 @@ export default function AppLayout() {
 
   const { data: cartItems = [] } = useQuery({
     queryKey: ['cart'],
-    queryFn: () => base44.entities.CartItem.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('carts').select('*')
+      if (error) throw error
+      return data || []
+    },
     retry: 1,
   });
 
