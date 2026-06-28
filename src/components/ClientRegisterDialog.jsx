@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ADMIN_CODE, createAdminSession, isAdminCode } from '@/lib/adminAuth'
 
 export default function ClientRegisterDialog() {
   const [open, setOpen] = useState(false)
@@ -40,7 +41,7 @@ export default function ClientRegisterDialog() {
     try { users = usersRaw ? JSON.parse(usersRaw) : [] } catch (err) { users = [] }
 
     if (mode === 'register') {
-      if (contactType === 'other' && contactValue === 'ADMIN228SS') {
+      if (contactType === 'other' && isAdminCode(contactValue)) {
         setError('Этот код зарезервирован для админки.')
         return
       }
@@ -67,12 +68,7 @@ export default function ClientRegisterDialog() {
       navigate('/profile')
     } else {
       if (isAdminLogin) {
-        const adminSession = {
-          role: 'admin',
-          code: 'ADMIN228SS',
-          label: 'Администратор',
-          createdAt: new Date().toISOString(),
-        }
+        const adminSession = createAdminSession()
         try { localStorage.setItem('adminSession', JSON.stringify(adminSession)) } catch (err) {}
         try { window.dispatchEvent(new CustomEvent('adminSessionChanged', { detail: adminSession })) } catch (e) {}
         try { window.dispatchEvent(new CustomEvent('clientRegistrationChanged', { detail: null })) } catch (e) {}
@@ -102,7 +98,7 @@ export default function ClientRegisterDialog() {
     other: "Контактная информация",
   }
 
-  const isAdminLogin = mode === 'login' && contactType === 'other' && contactValue === 'ADMIN228SS'
+  const isAdminLogin = mode === 'login' && contactType === 'other' && isAdminCode(contactValue)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -122,11 +118,6 @@ export default function ClientRegisterDialog() {
           </div>
           <DialogTitle>{mode === 'register' ? 'Регистрация клиента' : 'Вход в аккаунт'}</DialogTitle>
           <DialogDescription>{mode === 'register' ? 'Укажите имя, фамилию и один способ связи.' : 'Введите способ связи и значение, чтобы войти.'}</DialogDescription>
-          {mode === 'login' && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Для входа в админ-панель выберите <span className="font-medium">Другое</span> и введите код <span className="font-medium">ADMIN228SS</span>.
-            </p>
-          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">

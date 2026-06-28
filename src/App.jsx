@@ -14,17 +14,9 @@ import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
+import { readAdminSession } from '@/lib/adminAuth';
 
-const getAdminSession = () => {
-  try {
-    const raw = localStorage.getItem('adminSession')
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return parsed?.code === 'ADMIN228SS' ? parsed : null
-  } catch (error) {
-    return null
-  }
-}
+const getAdminSession = () => readAdminSession()
 
 const AdminGate = () => {
   const [adminSession, setAdminSession] = useState(getAdminSession())

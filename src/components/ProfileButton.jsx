@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import ClientRegisterDialog from '@/components/ClientRegisterDialog'
 import { User, LogOut, Shield } from 'lucide-react'
+import { readAdminSession } from '@/lib/adminAuth'
 
 export default function ProfileButton() {
   const [client, setClient] = useState(null)
@@ -19,7 +20,7 @@ export default function ProfileButton() {
       else setClient(null)
 
       const adminRaw = localStorage.getItem('adminSession')
-      if (adminRaw) setAdminSession(JSON.parse(adminRaw))
+      if (adminRaw) setAdminSession(readAdminSession())
       else setAdminSession(null)
     } catch (e) {
       setClient(null)
@@ -46,7 +47,7 @@ export default function ProfileButton() {
         if (detail) setAdminSession(detail)
         else {
           const adminRaw = localStorage.getItem('adminSession')
-          setAdminSession(adminRaw ? JSON.parse(adminRaw) : null)
+          setAdminSession(adminRaw ? readAdminSession() : null)
         }
       } catch (err) {
         setAdminSession(null)
@@ -59,7 +60,7 @@ export default function ProfileButton() {
         const raw3 = localStorage.getItem('clientRegistration')
         setClient(raw3 ? JSON.parse(raw3) : null)
         const adminRaw = localStorage.getItem('adminSession')
-        setAdminSession(adminRaw ? JSON.parse(adminRaw) : null)
+        setAdminSession(adminRaw ? readAdminSession() : null)
       } catch (err) {
         setClient(null)
         setAdminSession(null)
