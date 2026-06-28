@@ -80,24 +80,24 @@ function App() {
     if (sessionStorage.getItem('siteVisitTracked')) return
 
     sessionStorage.setItem('siteVisitTracked', '1')
-    // Fire and forget - don't block app startup
-    try {
-      supabase
-        .from('site_visits')
-        .insert({
-          page: window.location.pathname || '/',
-          device: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-          user_agent: navigator.userAgent,
-        })
-        .then(() => {
-          // visit tracked successfully
-        })
-        .catch(() => {
-          // no-op: visit tracking should not block app startup
-        })
-    } catch (error) {
-      // no-op: visit tracking should not block app startup
+    
+    // Track site visit (fire and forget, don't block app startup)
+    const trackVisit = async () => {
+      try {
+        await supabase
+          .from('site_visits')
+          .insert({
+            page: window.location.pathname || '/',
+            device: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            user_agent: navigator.userAgent,
+          })
+      } catch (error) {
+        // Silent fail - visit tracking should not affect app
+        console.debug('Visit tracking failed:', error)
+      }
     }
+    
+    trackVisit()
   }, [])
 
   return (
