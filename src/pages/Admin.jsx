@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { base44 } from '@/api/base44Client'
+import { supabase } from '@/api/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,13 +33,39 @@ const emptyProduct = {
 const categories = ['aquatic', 'aldehydic', 'amber', 'balsamic', 'oriental', 'gourmand', 'woody', 'other', 'leather', 'musky', 'spicy', 'sweet', 'tobacco', 'fruity', 'fougere', 'floral', 'citrus']
 const genders = ['unisex', 'feminine', 'masculine']
 
+const fetchProducts = async () => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(300)
+
+  if (error) throw error
+  return data || []
+}
+
+const updateProductById = async (id, payload) => {
+  const { error } = await supabase.from('products').update(payload).eq('id', id)
+  if (error) throw error
+}
+
+const createProduct = async (payload) => {
+  const { error } = await supabase.from('products').insert(payload)
+  if (error) throw error
+}
+
+const deleteProductById = async (id) => {
+  const { error } = await supabase.from('products').delete().eq('id', id)
+  if (error) throw error
+}
+
 export default function Admin() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('products') // 'products' or 'orders' or 'stats'
   
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-products'],
-    queryFn: () => base44.entities.Product.list('-created_date', 300),
+    queryFn: fetchProducts,
     retry: 1,
   })
 
@@ -208,7 +235,7 @@ export default function Admin() {
         ? Math.round(price * (100 - percent) / 100)
         : product.sale_price || null
 
-      await base44.entities.Product.update(product.id, {
+      await updateProductById(product.id, {
         price,
         sale_price: sale_price === null ? null : sale_price,
         popular: bulkSetPopular ? true : product.popular,
@@ -317,7 +344,7 @@ export default function Admin() {
     }
 
     await Promise.all(products.map((product) =>
-      base44.entities.Product.update(product.id, { popular: selectedPopularIds.includes(product.id) })
+      updateProductById(product.id, { popular: selectedPopularIds.includes(product.id) })
     ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
@@ -334,7 +361,7 @@ export default function Admin() {
     }
 
     await Promise.all(products.map((product) =>
-      base44.entities.Product.update(product.id, { bestseller: selectedBestsellerIds.includes(product.id) })
+      updateProductById(product.id, { bestseller: selectedBestsellerIds.includes(product.id) })
     ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
@@ -412,9 +439,9 @@ export default function Admin() {
 
     try {
       if (selectedId) {
-        await base44.entities.Product.update(selectedId, payload)
+        await updateProductById(selectedId, payload)
       } else {
-        await base44.entities.Product.create(payload)
+        await createProduct(payload)
       }
 
       setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
@@ -435,7 +462,7 @@ export default function Admin() {
 
   const deleteCurrent = async () => {
     if (!selectedId) return
-    await base44.entities.Product.delete(selectedId)
+    await deleteProductById(selectedId)
     setStatus('Позиция удалена')
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['products'] })
