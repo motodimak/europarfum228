@@ -50,8 +50,16 @@ const updateProductById = async (id, payload) => {
   if (!isSupabaseConfigured) {
     throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
   }
-  const { error } = await supabase.from('products').update(payload).eq('id', id)
+  const { data, error } = await supabase
+    .from('products')
+    .update(payload)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle()
   if (error) throw error
+  if (!data) {
+    throw new Error('Обновление не применилось. Проверьте RLS policy для products: UPDATE должен иметь USING (true) и WITH CHECK (true).')
+  }
 }
 
 const createProduct = async (payload) => {
