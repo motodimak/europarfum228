@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import HeroSection from '../components/home/HeroSection';
 import FeaturedSection from '../components/home/FeaturedSection';
 import CategoriesSection from '../components/home/CategoriesSection';
@@ -8,10 +8,20 @@ import PopularPerfumesSection from '../components/home/PopularPerfumesSection';
 
 const HERO_IMAGE = 'https://media.base44.com/images/public/69ede4f3bbf6ffb09c345510/267f53f86_generated_84f14b21.png';
 
+const fetchAllProducts = async () => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(300)
+  if (error) throw error
+  return data || []
+}
+
 export default function Home() {
   const { data: remoteProducts = [] } = useQuery({
     queryKey: ['all-products-home'],
-    queryFn: () => base44.entities.Product.list('-created_date', 300),
+    queryFn: fetchAllProducts,
   });
 
   const mergedProducts = React.useMemo(() => remoteProducts, [remoteProducts])

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { ArrowRight } from 'lucide-react';
 import { getEffectivePrice } from '@/lib/pricing';
 
@@ -49,15 +49,22 @@ function CategoryProductCard({ product }) {
 }
 
 function CategoryBlock({ category, index }) {
+  const fetchCategoryProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', category.key)
+      .order('created_at', { ascending: false })
+      .limit(2)
+
+    if (error) throw error
+    return data || []
+  }
+
   const { data: products = [] } = useQuery({
     queryKey: ['category-products', category.key],
-    queryFn: () => base44.entities.Product.filter({ category: category.key }, '-created_date', 2),
+    queryFn: fetchCategoryProducts,
   });
-
-  const mergedProducts = React.useMemo(
-    () => products.filter((product) => product.category === category.key),
-    [products, category.key]
-  );
 
   return (
     <motion.div
@@ -82,9 +89,9 @@ function CategoryBlock({ category, index }) {
       </div>
 
       {/* Products */}
-      {mergedProducts.length > 0 ? (
+      {products.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {mergedProducts.map((product) => (
+          {products.map((product) => (
             <CategoryProductCard key={product.id} product={product} />
           ))}
         </div>

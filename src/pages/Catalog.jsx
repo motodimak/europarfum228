@@ -1,10 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/products/ProductCard';
 import CatalogFilters from '../components/catalog/CatalogFilters';
 import { Loader2 } from 'lucide-react';
+
+const fetchCatalogProducts = async () => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+  return data || []
+}
 
 export default function Catalog() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -15,7 +25,7 @@ export default function Catalog() {
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-created_date', 100),
+    queryFn: fetchCatalogProducts,
   });
 
   const filtered = useMemo(() => {
