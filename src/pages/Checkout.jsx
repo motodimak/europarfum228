@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CreditCard, Banknote, CheckCircle2 } from 'lucide-react';
@@ -16,7 +16,11 @@ export default function Checkout() {
 
   const { data: cartItems = [] } = useQuery({
     queryKey: ['cart'],
-    queryFn: () => base44.entities.CartItem.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('carts').select('*')
+      if (error) throw error
+      return data || []
+    },
     retry: 1,
   });
 
@@ -51,7 +55,7 @@ export default function Checkout() {
     const clientContactValue = clientInfo?.contactValue || '';
     const clientPhone = form.phone || (clientContactType === 'phone' ? clientContactValue : '');
     try {
-      await base44.entities.Order.create({
+      await supabase.from('orders').insert({
         ...form,
         total_amount: total,
         items_snapshot: JSON.stringify(cartItems),
@@ -86,7 +90,7 @@ export default function Checkout() {
 
     try {
       // Очищаем корзину
-      await Promise.all(cartItems.map(item => base44.entities.CartItem.delete(item.id)));
+      await Promise.all(cartItems.map(item => supabase.from('carts').delete().eq('id', item.id)));
     } catch (error) {
       // Non-critical for success page
     }

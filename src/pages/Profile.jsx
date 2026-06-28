@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { base44 } from '@/api/base44Client'
+import { supabase } from '@/api/supabaseClient'
 import { Package, Calendar, DollarSign, MapPin } from 'lucide-react'
 import { getReviewsByUser } from '@/lib/reviewStore'
 import ReviewStars from '@/components/ReviewStars'
@@ -28,7 +28,8 @@ export default function Profile() {
 
         // Load orders from backend only
         let allOrders = []
-        const backendOrders = await base44.entities.Order.list()
+        const { data: backendOrders, error } = await supabase.from('orders').select('*')
+        if (error) throw error
         if (backendOrders && Array.isArray(backendOrders)) {
           allOrders = clientIdentifier
             ? backendOrders.filter((o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier)

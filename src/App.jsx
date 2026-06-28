@@ -6,7 +6,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 
 import AppLayout from './components/layout/AppLayout';
 import Home from './pages/Home';
@@ -80,8 +80,9 @@ function App() {
     if (sessionStorage.getItem('siteVisitTracked')) return
 
     sessionStorage.setItem('siteVisitTracked', '1')
-    base44.entities.SiteVisit
-      .create({
+    supabase
+      .from('site_visits')
+      .insert({
         page: window.location.pathname || '/',
         device: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
         user_agent: navigator.userAgent,

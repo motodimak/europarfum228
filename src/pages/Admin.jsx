@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { base44 } from '@/api/base44Client'
 import { supabase } from '@/api/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,13 +70,21 @@ export default function Admin() {
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['admin-orders'],
-    queryFn: () => base44.entities.Order.list('-created_date', 500),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(500)
+      if (error) throw error
+      return data || []
+    },
     retry: 1,
   })
 
   const { data: siteVisits = [] } = useQuery({
     queryKey: ['admin-site-visits'],
-    queryFn: () => base44.entities.SiteVisit.list('-created_date', 2000),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('site_visits').select('*').order('created_at', { ascending: false }).limit(2000)
+      if (error) throw error
+      return data || []
+    },
     retry: 1,
   })
 
