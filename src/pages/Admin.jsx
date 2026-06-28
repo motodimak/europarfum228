@@ -483,7 +483,7 @@ export default function Admin() {
   const updateOrderStatus = async (newStatus) => {
     if (!selectedOrderId) return
 
-    await base44.entities.Order.update(selectedOrderId, { status: newStatus })
+    await supabase.from('orders').update({ status: newStatus }).eq('id', selectedOrderId)
     setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
 
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
@@ -542,10 +542,10 @@ export default function Admin() {
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount + (newItem.product_price * newItem.quantity)
 
-    await base44.entities.Order.update(selectedOrderId, {
+    await supabase.from('orders').update({
       items_snapshot: updatedItemsSnapshot,
       total_amount: newTotal
-    })
+    }).eq('id', selectedOrderId)
 
     setOrderStatusUpdate(`Товар добавлен в заказ`)
     setSelectedProductToAdd('')
@@ -563,10 +563,10 @@ export default function Admin() {
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount - ((removedItem.product_price || 0) * (removedItem.quantity || 1))
 
-    await base44.entities.Order.update(selectedOrderId, {
+    await supabase.from('orders').update({
       items_snapshot: updatedItemsSnapshot,
       total_amount: Math.max(0, newTotal)
-    })
+    }).eq('id', selectedOrderId)
 
     setOrderStatusUpdate(`Товар удален из заказа`)
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
