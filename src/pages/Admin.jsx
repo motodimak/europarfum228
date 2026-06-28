@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/api/supabaseClient'
+import { supabase, isSupabaseConfigured } from '@/api/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +33,9 @@ const categories = ['aquatic', 'aldehydic', 'amber', 'balsamic', 'oriental', 'go
 const genders = ['unisex', 'feminine', 'masculine']
 
 const fetchProducts = async () => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -44,16 +47,25 @@ const fetchProducts = async () => {
 }
 
 const updateProductById = async (id, payload) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
   const { error } = await supabase.from('products').update(payload).eq('id', id)
   if (error) throw error
 }
 
 const createProduct = async (payload) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
   const { error } = await supabase.from('products').insert(payload)
   if (error) throw error
 }
 
 const deleteProductById = async (id) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
   const { error } = await supabase.from('products').delete().eq('id', id)
   if (error) throw error
 }
@@ -404,6 +416,11 @@ export default function Admin() {
     event.preventDefault()
     if (isSavingProduct) return
 
+    if (!isSupabaseConfigured) {
+      setStatus('Ошибка сохранения: Supabase не настроен в текущем окружении. Проверьте переменные VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY.')
+      return
+    }
+
     const priceValue = Number(form.price)
     const salePriceValue = form.sale_price === '' ? null : Number(form.sale_price)
     const volumeValue = form.volume_ml === '' ? null : Number(form.volume_ml)
@@ -460,7 +477,11 @@ export default function Admin() {
       setSelectedId(null)
       setForm(emptyProduct)
     } catch (error) {
-      const message = error?.response?.data?.message || error?.message || 'Не удалось сохранить позицию. Проверьте права доступа и поля формы.'
+      const rawMessage = error?.response?.data?.message || error?.message || ''
+      const isNetworkError = /NetworkError|Failed to fetch|fetch resource/i.test(rawMessage)
+      const message = isNetworkError
+        ? 'Не удалось подключиться к Supabase. Проверьте VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY и их значения в Vercel Environment Variables.'
+        : (rawMessage || 'Не удалось сохранить позицию. Проверьте права доступа и поля формы.')
       setStatus(`Ошибка сохранения: ${message}`)
     } finally {
       setIsSavingProduct(false)
