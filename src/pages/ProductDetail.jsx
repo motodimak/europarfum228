@@ -181,12 +181,13 @@ export default function ProductDetail() {
         <ArrowLeft className="w-4 h-4" /> Каталог
       </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-        {/* Image */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-start">
+        {/* Image + Notes */}
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
+          className="space-y-8"
         >
           <div className="aspect-square rounded-xl overflow-hidden bg-secondary relative">
             {product.image_url ? (
@@ -197,6 +198,22 @@ export default function ProductDetail() {
               </div>
             )}
             <div className="absolute -bottom-6 -right-6 w-40 h-40 bg-accent/10 rounded-full blur-3xl" />
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-card/85 p-6 md:p-7 shadow-sm">
+            <p className="font-body text-xs tracking-widest uppercase text-muted-foreground mb-4">Ноты аромата</p>
+            {notes.length > 0 ? (
+              <div className="space-y-4">
+                {notes.map((note) => (
+                  <div key={note.label}>
+                    <p className="font-body text-xs font-semibold mb-1">{note.label}</p>
+                    <p className="font-body text-sm text-muted-foreground">{note.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-muted-foreground">Ноты для этого аромата скоро появятся.</p>
+            )}
           </div>
         </motion.div>
 
@@ -214,13 +231,27 @@ export default function ProductDetail() {
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-4 mb-6">
-            <span className="font-heading text-2xl md:text-3xl font-semibold">
-              {(product.price || 0).toLocaleString('ru-RU')} ₽
-            </span>
-            {product.volume_ml && (
-              <span className="font-body text-sm text-muted-foreground">{product.volume_ml} мл</span>
-            )}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="flex items-baseline gap-4">
+              <span className="font-heading text-2xl md:text-3xl font-semibold">
+                {(product.price || 0).toLocaleString('ru-RU')} ₽
+              </span>
+              {product.volume_ml && (
+                <span className="font-body text-sm text-muted-foreground">{product.volume_ml} мл</span>
+              )}
+            </div>
+
+            <Button
+              onClick={() => addToCartMutation.mutate()}
+              disabled={addToCartMutation.isPending}
+              className="h-12 px-7 font-body text-xs md:text-sm tracking-[0.08em] uppercase rounded-lg border border-primary/20 shadow-md gap-2 shrink-0"
+            >
+              {addToCartMutation.isSuccess ? (
+                <><Check className="w-4 h-4" /> Добавлено в корзину</>
+              ) : (
+                <><ShoppingBag className="w-4 h-4" /> Добавить в корзину</>
+              )}
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-8">
@@ -320,31 +351,6 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {notes.length > 0 && (
-            <div className="space-y-4 mb-10 p-6 rounded-xl bg-secondary/50 border border-border/40">
-              <p className="font-body text-xs tracking-widest uppercase text-muted-foreground">Ноты аромата</p>
-              {notes.map((note) => (
-                <div key={note.label}>
-                  <p className="font-body text-xs font-medium mb-1">{note.label}</p>
-                  <p className="font-body text-sm text-muted-foreground">{note.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-auto">
-            <Button
-              onClick={() => addToCartMutation.mutate()}
-              disabled={addToCartMutation.isPending}
-              className="w-full md:w-auto h-14 px-12 font-body text-sm tracking-wider uppercase rounded-full gap-3"
-            >
-              {addToCartMutation.isSuccess ? (
-                <><Check className="w-4 h-4" /> Добавлено</>
-              ) : (
-                <><ShoppingBag className="w-4 h-4" /> В корзину</>
-              )}
-            </Button>
-          </div>
         </motion.div>
       </div>
     </div>

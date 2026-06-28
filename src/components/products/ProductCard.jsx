@@ -32,14 +32,18 @@ export default function ProductCard({ product, index = 0 }) {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.08 }}
+      className="h-full"
     >
-      <Link to={`/product/${product.id}`} className="group block">
-        <div className="aspect-square overflow-hidden rounded-lg bg-secondary mb-4 relative">
+      <Link
+        to={`/product/${product.id}`}
+        className="group block h-full rounded-2xl border border-border/85 bg-card/88 backdrop-blur-sm p-3 md:p-4 shadow-[0_12px_34px_-22px_rgba(8,24,28,0.6)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_24px_50px_-24px_rgba(8,24,28,0.68)]"
+      >
+        <div className="aspect-square overflow-hidden rounded-xl bg-secondary mb-4 relative">
           {product.image_url ? (
             <img
               src={product.image_url}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 font-heading text-4xl">
@@ -53,21 +57,21 @@ export default function ProductCard({ product, index = 0 }) {
           )}
           <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-500" />
         </div>
-        <div className="space-y-1">
-          <p className="font-body text-[11px] tracking-widest uppercase text-muted-foreground">
+        <div className="space-y-1.5">
+          <p className="font-body text-[11px] tracking-widest uppercase text-muted-foreground/90">
             {product.brand}
           </p>
           <h3 className="font-heading text-base md:text-lg font-medium leading-tight">
             {product.name}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground/90">
             <ReviewStars rating={getAverageRating(product.id)} size={14} />
             <span>{getAverageRating(product.id).toFixed(1)}</span>
           </div>
           <div className="flex items-center gap-3 pt-1">
             {hasSale ? (
               <>
-                <span className="font-body text-sm text-muted-foreground line-through">
+                <span className="font-body text-sm text-muted-foreground/85 line-through">
                   {(product.price || 0).toLocaleString('ru-RU')} ₽
                 </span>
                 <span className="font-body text-sm font-semibold text-emerald-600">
