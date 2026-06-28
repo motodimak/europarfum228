@@ -20,7 +20,8 @@ export const AuthProvider = ({ children }) => {
     try {
       // App state is ready immediately with Supabase
       setAuthError(null);
-      setAuthChecked(true);
+      // Check user auth after app state is ready
+      await checkUserAuth();
     } catch (error) {
       console.error('App state check failed:', error);
       setAuthError({
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }) => {
         message: error.message || 'Failed to load app'
       });
       setAuthChecked(true);
+      setIsLoadingAuth(false);
     }
   };
 
