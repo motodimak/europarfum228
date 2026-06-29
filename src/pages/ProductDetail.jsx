@@ -212,7 +212,7 @@ export default function ProductDetail() {
             <div className="absolute -bottom-6 -right-6 w-40 h-40 bg-accent/10 rounded-full blur-3xl" />
           </div>
 
-          <div className="rounded-xl border border-border/70 bg-card/85 p-6 md:p-7 shadow-sm">
+          <div className="hidden md:block rounded-xl border border-border/70 bg-card/85 p-6 md:p-7 shadow-sm">
             <p className="font-body text-xs tracking-widest uppercase text-muted-foreground mb-4">Ноты аромата</p>
             {notes.length > 0 ? (
               <div className="space-y-4">
@@ -290,6 +290,22 @@ export default function ProductDetail() {
               {product.description}
             </p>
           )}
+
+          <div className="md:hidden rounded-xl border border-border/70 bg-card/85 p-6 shadow-sm mb-8">
+            <p className="font-body text-xs tracking-widest uppercase text-muted-foreground mb-4">Ноты аромата</p>
+            {notes.length > 0 ? (
+              <div className="space-y-4">
+                {notes.map((note) => (
+                  <div key={note.label}>
+                    <p className="font-body text-xs font-semibold mb-1">{note.label}</p>
+                    <p className="font-body text-sm text-muted-foreground">{note.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-muted-foreground">Ноты для этого аромата скоро появятся.</p>
+            )}
+          </div>
 
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
