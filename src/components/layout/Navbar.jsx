@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Menu, X } from 'lucide-react';
+import { ShoppingBag, Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from 'next-themes'
 import ProfileButton from '@/components/ProfileButton'
 
 export default function Navbar({ cartCount = 0, onCartOpen }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false)
+  const { theme, setTheme } = useTheme()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isDark = theme === 'dark'
+  const toggleTheme = () => {
+    if (!mounted) return
+    setTheme(isDark ? 'light' : 'dark')
+  }
 
   return (
     <>
@@ -22,6 +35,13 @@ export default function Navbar({ cartCount = 0, onCartOpen }) {
           </div>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Переключить на светлую тему' : 'Переключить на темную тему'}
+              className="relative p-2 hover:bg-secondary/60 rounded-full transition-colors"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <ProfileButton />
             <button
               onClick={onCartOpen}
