@@ -5,6 +5,19 @@
 @tailwind utilities;
 
 @layer base {
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition:
+      background-color 320ms ease,
+      color 320ms ease,
+      border-color 320ms ease,
+      box-shadow 320ms ease,
+      fill 320ms ease,
+      stroke 320ms ease !important;
+  }
+
   :root {
     --font-heading: 'Playfair Display', serif;
     --font-body: 'Inter', sans-serif;
@@ -109,6 +122,10 @@
       radial-gradient(circle at 84% 12%, hsla(29, 55%, 26%, 0.28), transparent 36%),
       linear-gradient(180deg, hsla(220, 18%, 8%, 0.99) 0%, hsla(220, 16%, 6%, 0.99) 100%);
     background-attachment: fixed;
+  }
+
+  body {
+    transition: background-image 420ms ease;
   }
 }
 

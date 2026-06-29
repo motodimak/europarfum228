@@ -17,7 +17,12 @@ export default function Navbar({ cartCount = 0, onCartOpen }) {
   const isDark = theme === 'dark'
   const toggleTheme = () => {
     if (!mounted) return
+    const root = document.documentElement
+    root.classList.add('theme-transitioning')
     setTheme(isDark ? 'light' : 'dark')
+    window.setTimeout(() => {
+      root.classList.remove('theme-transitioning')
+    }, 380)
   }
 
   return (
