@@ -6,6 +6,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { supabase } from '@/api/supabaseClient';
 
 import AppLayout from './components/layout/AppLayout';
 import Home from './pages/Home';
@@ -14,17 +15,9 @@ import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
+import { readAdminSession } from '@/lib/adminAuth';
 
-const getAdminSession = () => {
-  try {
-    const raw = localStorage.getItem('adminSession')
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return parsed?.code === 'ADMIN228SS' ? parsed : null
-  } catch (error) {
-    return null
-  }
-}
+const getAdminSession = () => readAdminSession()
 
 const AdminGate = () => {
   const [adminSession, setAdminSession] = useState(getAdminSession())
@@ -87,21 +80,24 @@ function App() {
     if (sessionStorage.getItem('siteVisitTracked')) return
 
     sessionStorage.setItem('siteVisitTracked', '1')
-
-    const visits = Number(localStorage.getItem('siteVisits') || 0) + 1
-    localStorage.setItem('siteVisits', String(visits))
-
-    const today = new Date().toISOString().slice(0, 10)
-    let siteVisitsHistory = {}
-
-    try {
-      siteVisitsHistory = JSON.parse(localStorage.getItem('siteVisitsHistory') || '{}')
-    } catch {
-      siteVisitsHistory = {}
+    
+    // Track site visit (fire and forget, don't block app startup)
+    const trackVisit = async () => {
+      try {
+        await supabase
+          .from('site_visits')
+          .insert({
+            page: window.location.pathname || '/',
+            device: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            user_agent: navigator.userAgent,
+          })
+      } catch (error) {
+        // Silent fail - visit tracking should not affect app
+        console.debug('Visit tracking failed:', error)
+      }
     }
-
-    siteVisitsHistory[today] = (Number(siteVisitsHistory[today]) || 0) + 1
-    localStorage.setItem('siteVisitsHistory', JSON.stringify(siteVisitsHistory))
+    
+    trackVisit()
   }, [])
 
   return (

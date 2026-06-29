@@ -2,10 +2,18 @@ import React, { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/AuthContext'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { base44 } from '@/api/base44Client'
-import { Package, Calendar, DollarSign, MapPin } from 'lucide-react'
+import { supabase } from '@/api/supabaseClient'
+import { Package, Calendar, MapPin } from 'lucide-react'
 import { getReviewsByUser } from '@/lib/reviewStore'
 import ReviewStars from '@/components/ReviewStars'
+
+const formatRub = (value) => {
+  const amount = Number(value || 0)
+  return amount.toLocaleString('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
 
 export default function Profile() {
   const { user, isAuthenticated } = useAuth()
@@ -26,34 +34,14 @@ export default function Profile() {
         // Get current client identifier
         const clientIdentifier = clientInfo?.contactValue || ''
 
-        // Load orders from backend and localStorage
+        // Load orders from backend only
         let allOrders = []
-
-        // Try backend orders
-        try {
-          const backendOrders = await base44.entities.Order.list()
-          if (backendOrders && Array.isArray(backendOrders)) {
-            allOrders = clientIdentifier
-              ? backendOrders.filter((o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier)
-              : backendOrders
-          }
-        } catch (error) {
-          // Backend unavailable, will fall back to localStorage
-        }
-
-        // Add local orders from localStorage
-        try {
-          const localOrdersRaw = localStorage.getItem('localOrders')
-          const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-          // Filter by current client's identifier if available
-          const filteredLocal = clientIdentifier 
-            ? localOrders.filter(
-                (o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier
-              )
-            : localOrders
-          allOrders = [...allOrders, ...filteredLocal]
-        } catch (error) {
-          // Ignore localStorage errors
+        const { data: backendOrders, error } = await supabase.from('orders').select('*')
+        if (error) throw error
+        if (backendOrders && Array.isArray(backendOrders)) {
+          allOrders = clientIdentifier
+            ? backendOrders.filter((o) => o.client_identifier === clientIdentifier || o.client_contact_value === clientIdentifier)
+            : backendOrders
         }
 
         // Sort by created_at descending (newest first)
@@ -188,8 +176,7 @@ export default function Profile() {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-sm flex items-center gap-1 justify-end">
-                        <DollarSign className="w-4 h-4" />
-                        {order.total_amount?.toFixed(2) || '0.00'} ₽
+                        {formatRub(order.total_amount)} ₽
                       </p>
                     </div>
                   </div>

@@ -2,9 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { ArrowRight } from 'lucide-react';
-import { mergeProducts } from '@/lib/productStore';
+import { getEffectivePrice } from '@/lib/pricing';
 
 const categories = [
   { key: 'aquatic', label: 'Акватические', desc: 'Морские ноты и свежесть воды' },
@@ -39,7 +39,7 @@ function CategoryProductCard({ product }) {
       <div className="min-w-0 flex-1">
         <p className="font-body text-[11px] text-muted-foreground truncate">{product.brand}</p>
         <p className="font-heading text-sm font-medium leading-tight truncate">{product.name}</p>
-        <p className="font-body text-sm font-semibold mt-0.5">{(product.price || 0).toLocaleString('ru-RU')} ₽</p>
+        <p className="font-body text-sm font-semibold mt-0.5">{getEffectivePrice(product).toLocaleString('ru-RU')} ₽</p>
         {product.description && (
           <p className="font-body text-[11px] text-muted-foreground mt-1 line-clamp-1">{product.description}</p>
         )}
@@ -49,15 +49,22 @@ function CategoryProductCard({ product }) {
 }
 
 function CategoryBlock({ category, index }) {
+  const fetchCategoryProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', category.key)
+      .order('created_at', { ascending: false })
+      .limit(2)
+
+    if (error) throw error
+    return data || []
+  }
+
   const { data: products = [] } = useQuery({
     queryKey: ['category-products', category.key],
-    queryFn: () => base44.entities.Product.filter({ category: category.key }, '-created_date', 2),
+    queryFn: fetchCategoryProducts,
   });
-
-  const mergedProducts = React.useMemo(
-    () => mergeProducts(products).filter((product) => product.category === category.key),
-    [products, category.key]
-  );
 
   return (
     <motion.div
@@ -82,9 +89,9 @@ function CategoryBlock({ category, index }) {
       </div>
 
       {/* Products */}
-      {mergedProducts.length > 0 ? (
+      {products.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {mergedProducts.map((product) => (
+          {products.map((product) => (
             <CategoryProductCard key={product.id} product={product} />
           ))}
         </div>

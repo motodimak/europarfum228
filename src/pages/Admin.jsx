@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { base44 } from '@/api/base44Client'
+import { supabase, isSupabaseConfigured } from '@/api/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ChartContainer } from '@/components/ui/chart'
 import { Loader2, Plus, Trash2, Upload, PencilLine, Shield, Package, CheckCircle2, Clock, BarChart } from 'lucide-react'
 import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts'
-import { createLocalProductId, mergeProducts, removeProduct, upsertProduct } from '@/lib/productStore'
+import { getEffectivePrice } from '@/lib/pricing'
 import { sendTelegramOrderNotification } from '@/lib/telegram'
 
 const emptyProduct = {
@@ -32,51 +32,80 @@ const emptyProduct = {
 const categories = ['aquatic', 'aldehydic', 'amber', 'balsamic', 'oriental', 'gourmand', 'woody', 'other', 'leather', 'musky', 'spicy', 'sweet', 'tobacco', 'fruity', 'fougere', 'floral', 'citrus']
 const genders = ['unisex', 'feminine', 'masculine']
 
+const fetchProducts = async () => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(300)
+
+  if (error) throw error
+  return data || []
+}
+
+const updateProductById = async (id, payload) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
+  const { data, error } = await supabase
+    .from('products')
+    .update(payload)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle()
+  if (error) throw error
+  if (!data) {
+    throw new Error('Обновление не применилось. Проверьте RLS policy для products: UPDATE должен иметь USING (true) и WITH CHECK (true).')
+  }
+}
+
+const createProduct = async (payload) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
+  const { error } = await supabase.from('products').insert(payload)
+  if (error) throw error
+}
+
+const deleteProductById = async (id) => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase не настроен. Проверьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в окружении.')
+  }
+  const { error } = await supabase.from('products').delete().eq('id', id)
+  if (error) throw error
+}
+
 export default function Admin() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('products') // 'products' or 'orders' or 'stats'
   
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['admin-products'],
-    queryFn: async () => {
-      try {
-        return mergeProducts(await base44.entities.Product.list('-created_date', 300))
-      } catch {
-        return mergeProducts([])
-      }
-    },
+    queryFn: fetchProducts,
+    retry: 1,
   })
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['admin-orders'],
     queryFn: async () => {
-      let allOrders = []
-      try {
-        const backendOrders = await base44.entities.Order.list()
-        if (backendOrders && Array.isArray(backendOrders)) {
-          allOrders = backendOrders
-        }
-      } catch (error) {
-        // Backend unavailable
-      }
-
-      try {
-        const localOrdersRaw = localStorage.getItem('localOrders')
-        const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-        allOrders = [...allOrders, ...localOrders]
-      } catch (error) {
-        // Ignore localStorage errors
-      }
-
-      // Sort by created_at descending
-      allOrders.sort((a, b) => {
-        const dateA = new Date(a.created_at || 0)
-        const dateB = new Date(b.created_at || 0)
-        return dateB - dateA
-      })
-
-      return allOrders
+      const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(500)
+      if (error) throw error
+      return data || []
     },
+    retry: 1,
+  })
+
+  const { data: siteVisits = [] } = useQuery({
+    queryKey: ['admin-site-visits'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('site_visits').select('*').order('created_at', { ascending: false }).limit(2000)
+      if (error) throw error
+      return data || []
+    },
+    retry: 1,
   })
 
   const [selectedOrderId, setSelectedOrderId] = useState(null)
@@ -92,6 +121,7 @@ export default function Admin() {
   const [selectedId, setSelectedId] = useState(null)
   const [form, setForm] = useState(emptyProduct)
   const [status, setStatus] = useState('')
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
   const [selectedProductIds, setSelectedProductIds] = useState([])
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkDiscountPercent, setBulkDiscountPercent] = useState('')
@@ -104,14 +134,6 @@ export default function Admin() {
   const [bestsellerSearch, setBestsellerSearch] = useState('')
   const [popularStatus, setPopularStatus] = useState('')
   const [bestsellerStatus, setBestsellerStatus] = useState('')
-
-  const parseJson = (raw, fallback) => {
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return fallback
-    }
-  }
 
   const getLastDays = (count) => {
     const result = []
@@ -182,17 +204,20 @@ export default function Admin() {
     }))
   }, [orders])
 
-  const totalVisits = useMemo(() => {
-    return Number(localStorage.getItem('siteVisits') || 0)
-  }, [])
+  const totalVisits = useMemo(() => siteVisits.length, [siteVisits])
 
   const visitsHistory = useMemo(() => {
-    const history = parseJson(localStorage.getItem('siteVisitsHistory'), {})
+    const map = {}
+    siteVisits.forEach((visit) => {
+      const iso = String(visit.created_at || '').slice(0, 10)
+      if (!iso) return
+      map[iso] = (map[iso] || 0) + 1
+    })
     return getLastDays(7).map((day) => ({
       date: day.label,
-      visits: Number(history[day.iso] || 0),
+      visits: Number(map[day.iso] || 0),
     }))
-  }, [])
+  }, [siteVisits])
 
   const statusChartData = useMemo(() => {
     return Object.entries(statusCounts).map(([status, count]) => ({
@@ -230,22 +255,20 @@ export default function Admin() {
     const percent = Number(bulkDiscountPercent)
     const priceValue = bulkPrice.trim() === '' ? null : Number(bulkPrice)
 
-    products.forEach((product) => {
+    await Promise.all(products.map(async (product) => {
       if (!selectedProductIds.includes(product.id)) return
       const price = priceValue != null && !Number.isNaN(priceValue) ? priceValue : product.price
       const sale_price = !Number.isNaN(percent) && percent > 0 && percent < 100
         ? Math.round(price * (100 - percent) / 100)
         : product.sale_price || null
 
-      const updated = {
-        ...product,
+      await updateProductById(product.id, {
         price,
         sale_price: sale_price === null ? null : sale_price,
         popular: bulkSetPopular ? true : product.popular,
         bestseller: bulkSetBestseller ? true : product.bestseller,
-      }
-      upsertProduct(updated)
-    })
+      })
+    }))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -347,10 +370,9 @@ export default function Admin() {
       return
     }
 
-    products.forEach((product) => {
-      const updated = { ...product, popular: selectedPopularIds.includes(product.id) }
-      upsertProduct(updated)
-    })
+    await Promise.all(products.map((product) =>
+      updateProductById(product.id, { popular: selectedPopularIds.includes(product.id) })
+    ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -365,10 +387,9 @@ export default function Admin() {
       return
     }
 
-    products.forEach((product) => {
-      const updated = { ...product, bestseller: selectedBestsellerIds.includes(product.id) }
-      upsertProduct(updated)
-    })
+    await Promise.all(products.map((product) =>
+      updateProductById(product.id, { bestseller: selectedBestsellerIds.includes(product.id) })
+    ))
 
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
@@ -401,14 +422,23 @@ export default function Admin() {
 
   const saveProduct = async (event) => {
     event.preventDefault()
+    if (isSavingProduct) return
+
+    if (!isSupabaseConfigured) {
+      setStatus('Ошибка сохранения: Supabase не настроен в текущем окружении. Проверьте переменные VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY.')
+      return
+    }
+
+    const priceValue = Number(form.price)
+    const salePriceValue = form.sale_price === '' ? null : Number(form.sale_price)
+    const volumeValue = form.volume_ml === '' ? null : Number(form.volume_ml)
 
     const payload = {
-      id: selectedId || createLocalProductId(),
       name: form.name.trim(),
       brand: form.brand.trim(),
-      price: Number(form.price),
-      sale_price: form.sale_price === '' ? null : Number(form.sale_price),
-      volume_ml: form.volume_ml === '' ? null : Number(form.volume_ml),
+      price: priceValue,
+      sale_price: salePriceValue,
+      volume_ml: volumeValue,
       description: form.description.trim(),
       category: form.category,
       top_notes: form.top_notes.trim(),
@@ -421,25 +451,54 @@ export default function Admin() {
       popular: Boolean(form.popular),
     }
 
-    if (!payload.name || !payload.brand || Number.isNaN(payload.price)) {
+    if (!payload.name || !payload.brand || Number.isNaN(payload.price) || payload.price <= 0) {
       setStatus('Заполните имя, бренд и цену.')
       return
     }
 
-    upsertProduct(payload)
-    setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
-    await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
-    await queryClient.invalidateQueries({ queryKey: ['products'] })
-    await queryClient.invalidateQueries({ queryKey: ['featured-products'] })
-    await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
-    await queryClient.invalidateQueries({ queryKey: ['category-products'] })
-    setSelectedId(null)
-    setForm(emptyProduct)
+    if (payload.sale_price != null && (Number.isNaN(payload.sale_price) || payload.sale_price < 0)) {
+      setStatus('Цена со скидкой должна быть корректным числом.')
+      return
+    }
+
+    if (payload.volume_ml != null && (Number.isNaN(payload.volume_ml) || payload.volume_ml <= 0)) {
+      setStatus('Объём должен быть больше 0.')
+      return
+    }
+
+    setIsSavingProduct(true)
+    setStatus('Сохранение позиции...')
+
+    try {
+      if (selectedId) {
+        await updateProductById(selectedId, payload)
+      } else {
+        await createProduct(payload)
+      }
+
+      setStatus(selectedId ? 'Позиция обновлена' : 'Позиция добавлена')
+      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await queryClient.invalidateQueries({ queryKey: ['products'] })
+      await queryClient.invalidateQueries({ queryKey: ['featured-products'] })
+      await queryClient.invalidateQueries({ queryKey: ['all-products-home'] })
+      await queryClient.invalidateQueries({ queryKey: ['category-products'] })
+      setSelectedId(null)
+      setForm(emptyProduct)
+    } catch (error) {
+      const rawMessage = error?.response?.data?.message || error?.message || ''
+      const isNetworkError = /NetworkError|Failed to fetch|fetch resource/i.test(rawMessage)
+      const message = isNetworkError
+        ? 'Не удалось подключиться к Supabase. Проверьте VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY и их значения в Vercel Environment Variables.'
+        : (rawMessage || 'Не удалось сохранить позицию. Проверьте права доступа и поля формы.')
+      setStatus(`Ошибка сохранения: ${message}`)
+    } finally {
+      setIsSavingProduct(false)
+    }
   }
 
   const deleteCurrent = async () => {
     if (!selectedId) return
-    removeProduct(selectedId)
+    await deleteProductById(selectedId)
     setStatus('Позиция удалена')
     await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     await queryClient.invalidateQueries({ queryKey: ['products'] })
@@ -452,24 +511,9 @@ export default function Admin() {
 
   const updateOrderStatus = async (newStatus) => {
     if (!selectedOrderId) return
-    
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, { status: newStatus })
-      setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].status = newStatus
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-        setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
-      } else {
-        setOrderStatusUpdate('Ошибка: заказ не найден')
-      }
-    }
+
+    await supabase.from('orders').update({ status: newStatus }).eq('id', selectedOrderId)
+    setOrderStatusUpdate(`Статус обновлён: ${getStatusText(newStatus)}`)
 
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
     setTimeout(() => setOrderStatusUpdate(''), 3000)
@@ -520,30 +564,17 @@ export default function Admin() {
       product_id: product.id,
       product_name: product.name,
       quantity: parseInt(quantityToAdd) || 1,
-      product_price: product.price
+      product_price: getEffectivePrice(product)
     }
 
     const updatedItems = [...currentItems, newItem]
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount + (newItem.product_price * newItem.quantity)
 
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, {
-        items_snapshot: updatedItemsSnapshot,
-        total_amount: newTotal
-      })
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].items_snapshot = updatedItemsSnapshot
-        localOrders[idx].total_amount = newTotal
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-      }
-    }
+    await supabase.from('orders').update({
+      items_snapshot: updatedItemsSnapshot,
+      total_amount: newTotal
+    }).eq('id', selectedOrderId)
 
     setOrderStatusUpdate(`Товар добавлен в заказ`)
     setSelectedProductToAdd('')
@@ -561,23 +592,10 @@ export default function Admin() {
     const updatedItemsSnapshot = JSON.stringify(updatedItems)
     const newTotal = selectedOrder.total_amount - ((removedItem.product_price || 0) * (removedItem.quantity || 1))
 
-    try {
-      // Try to update in backend
-      await base44.entities.Order.update(selectedOrderId, {
-        items_snapshot: updatedItemsSnapshot,
-        total_amount: Math.max(0, newTotal)
-      })
-    } catch (error) {
-      // Fallback: update in localStorage
-      const localOrdersRaw = localStorage.getItem('localOrders')
-      const localOrders = localOrdersRaw ? JSON.parse(localOrdersRaw) : []
-      const idx = localOrders.findIndex(o => o.id === selectedOrderId)
-      if (idx >= 0) {
-        localOrders[idx].items_snapshot = updatedItemsSnapshot
-        localOrders[idx].total_amount = Math.max(0, newTotal)
-        localStorage.setItem('localOrders', JSON.stringify(localOrders))
-      }
-    }
+    await supabase.from('orders').update({
+      items_snapshot: updatedItemsSnapshot,
+      total_amount: Math.max(0, newTotal)
+    }).eq('id', selectedOrderId)
 
     setOrderStatusUpdate(`Товар удален из заказа`)
     await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
@@ -674,7 +692,7 @@ export default function Admin() {
       {orderStatusUpdate && <div className="mb-6 rounded-lg border border-green-200/50 bg-green-50 px-4 py-3 text-sm text-green-800">{orderStatusUpdate}</div>}
       {activeTab === 'products' && (
         <>
-          <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
+          {false && <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
                 <h2 className="font-heading text-xl font-semibold">Популярные позиции</h2>
@@ -717,7 +735,7 @@ export default function Admin() {
               <p className="text-sm text-muted-foreground">Выбрано: {selectedPopularIds.length}/8</p>
               {popularStatus && <div className="rounded-lg border border-border/50 bg-secondary/40 px-4 py-3 text-sm">{popularStatus}</div>}
             </div>
-          </div>
+          </div>}
 
           <div className="rounded-2xl border border-border/50 bg-card p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -930,7 +948,10 @@ export default function Admin() {
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button type="submit"><PencilLine className="w-4 h-4" />{selectedId ? 'Сохранить изменения' : 'Добавить позицию'}</Button>
+              <Button type="submit" disabled={isSavingProduct}>
+                {isSavingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <PencilLine className="w-4 h-4" />}
+                {isSavingProduct ? 'Сохраняю...' : (selectedId ? 'Сохранить изменения' : 'Добавить позицию')}
+              </Button>
               {selectedId && <Button type="button" variant="outline" onClick={() => window.confirm('Удалить эту позицию?') && deleteCurrent()}><Trash2 className="w-4 h-4" /> Удалить</Button>}
             </div>
           </form>

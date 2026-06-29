@@ -1,0 +1,7 @@
+.shiny-text {
+  display: inline-block;
+  position: relative;
+  text-shadow:
+    0 0 8px color-mix(in srgb, var(--shine-color, #ffffff) 20%, transparent),
+    0 0 14px color-mix(in srgb, var(--shine-color, #ffffff) 10%, transparent);
+}

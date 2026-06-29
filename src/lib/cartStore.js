@@ -29,7 +29,16 @@ export const addLocalCartItem = (item) => {
   if (existing) {
     next = current.map((it) =>
       it.product_id === item.product_id
-        ? { ...it, quantity: (it.quantity || 1) + 1 }
+        ? {
+            ...it,
+            quantity: (it.quantity || 1) + 1,
+            product_price: item.product_price,
+            product_name: item.product_name,
+            product_image: item.product_image,
+            product_volume: item.product_volume,
+            product_category: item.product_category,
+            product_gender: item.product_gender,
+          }
         : it
     )
   } else {

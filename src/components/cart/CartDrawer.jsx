@@ -2,10 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { isLocalCartItemId, removeLocalCartItem, updateLocalCartItemQuantity } from '@/lib/cartStore';
 
 export default function CartDrawer({ open, onClose, items = [] }) {
   const queryClient = useQueryClient();
@@ -13,28 +12,20 @@ export default function CartDrawer({ open, onClose, items = [] }) {
 
   const updateQuantity = async (item, delta) => {
     const newQty = (item.quantity || 1) + delta;
-    if (isLocalCartItemId(item.id)) {
-      updateLocalCartItemQuantity(item.id, newQty)
+    if (newQty <= 0) {
+      await supabase.from('carts').delete().eq('id', item.id);
     } else {
-      if (newQty <= 0) {
-        await base44.entities.CartItem.delete(item.id);
-      } else {
-        await base44.entities.CartItem.update(item.id, { quantity: newQty });
-      }
+      await supabase.from('carts').update({ quantity: newQty }).eq('id', item.id);
     }
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
   const removeItem = async (item) => {
-    if (isLocalCartItemId(item.id)) {
-      removeLocalCartItem(item.id)
-    } else {
-      await base44.entities.CartItem.delete(item.id);
-    }
+    await supabase.from('carts').delete().eq('id', item.id);
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
-  const total = items.reduce((sum, item) => sum + (item.product_price || 0) * (item.quantity || 1), 0);
+  const total = items.reduce((sum, item) => sum + Number(item.product_price || 0) * (item.quantity || 1), 0);
 
   return (
     <AnimatePresence>
@@ -82,7 +73,7 @@ export default function CartDrawer({ open, onClose, items = [] }) {
                           <p className="text-xs text-muted-foreground mt-0.5">{item.product_volume} мл</p>
                         )}
                         <p className="font-body text-sm font-semibold mt-1">
-                          {(item.product_price || 0).toLocaleString('ru-RU')} ₽
+                          {Number(item.product_price || 0).toLocaleString('ru-RU')} ₽
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <button

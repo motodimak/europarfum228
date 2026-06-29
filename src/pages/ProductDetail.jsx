@@ -1,12 +1,11 @@
 import React from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { Link } from 'react-router-dom';
+import { supabase } from '@/api/supabaseClient';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { isLocalProductId, mergeProducts } from '@/lib/productStore';
-import { addLocalCartItem } from '@/lib/cartStore';
+import { getEffectivePrice, hasDiscount } from '@/lib/pricing';
 import ReviewStars from '@/components/ReviewStars';
 import { getAverageRating, getReviewCount, getUserReview, saveProductReview, getProductReviews } from '@/lib/reviewStore';
 
@@ -38,44 +37,49 @@ const genderLabels = {
 };
 
 export default function ProductDetail() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const pathParts = window.location.pathname.split('/');
-  const productId = pathParts[pathParts.length - 1];
+  const location = useLocation();
+  const { id } = useParams();
+  const productFromState = location.state?.product || null;
+  const productId = decodeURIComponent(String(id || '').trim().replace(/\/+$/, ''));
 
   const queryClient = useQueryClient();
-  const localOnly = isLocalProductId(productId);
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: product = null, isLoading } = useQuery({
     queryKey: ['product', productId],
-    queryFn: () => base44.entities.Product.filter({ id: productId }),
-    enabled: !localOnly,
+    queryFn: async () => {
+      if (!productId) {
+        return productFromState
+      }
+
+      // Fetch product from Supabase using regular select (not .single())
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+      
+      if (error) {
+        console.error('[ProductDetail] Query error:', error, 'ID:', productId);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.warn('[ProductDetail] No rows found for ID:', productId);
+        if (productFromState && (productFromState.id === productId || productFromState.product_id === productId)) {
+          return productFromState
+        }
+        return null;
+      }
+      
+      console.log('[ProductDetail] Found product:', data[0].id);
+      return data[0];
+    },
+    retry: 1,
   });
-
-  const product = React.useMemo(() => {
-    if (localOnly) {
-      return mergeProducts([]).find((item) => item.id === productId)
-    }
-
-    return mergeProducts(products).find((item) => item.id === productId)
-  }, [products, productId, localOnly]);
 
   const userInfoRaw = typeof window === 'undefined' ? null : localStorage.getItem('clientRegistration')
   const userInfo = userInfoRaw ? JSON.parse(userInfoRaw) : null
 
-  const confirmedOrderIds = React.useMemo(() => {
-    if (typeof window === 'undefined') return []
-    const rawOrders = localStorage.getItem('localOrders')
-    const localOrders = rawOrders ? JSON.parse(rawOrders) : []
-    return localOrders
-      .filter((order) => (order.status || '').toLowerCase() === 'confirmed')
-      .flatMap((order) => {
-        try {
-          return JSON.parse(order.items_snapshot || '[]').map((item) => item.product_id)
-        } catch {
-          return []
-        }
-      })
-  }, [])
+  const confirmedOrderIds = React.useMemo(() => [], [])
 
   const currentReview = getUserReview(productId, userInfo?.id)
   const [reviewRating, setReviewRating] = React.useState(currentReview?.rating || 0)
@@ -109,35 +113,41 @@ export default function ProductDetail() {
 
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      if (localOnly) {
-        addLocalCartItem({
-          product_id: productId,
-          product_name: product.name,
-          product_price: product.price,
-          product_image: product.image_url,
-          product_volume: product.volume_ml,
-          product_category: product.category,
-          product_gender: product.gender,
-        })
-        return
-      }
+      if (!product) return
+      const effectivePrice = getEffectivePrice(product)
+      
+      const { data: existingCart } = await supabase
+        .from('carts')
+        .select('*')
+        .eq('product_id', productId)
+        .maybeSingle()
 
-      const existingCart = await base44.entities.CartItem.filter({ product_id: productId });
-      if (existingCart.length > 0) {
-        await base44.entities.CartItem.update(existingCart[0].id, {
-          quantity: (existingCart[0].quantity || 1) + 1,
-        });
+      if (existingCart) {
+        await supabase
+          .from('carts')
+          .update({
+            quantity: (existingCart.quantity || 1) + 1,
+            product_price: effectivePrice,
+            product_name: product.name,
+            product_image: product.image_url,
+            product_volume: product.volume_ml,
+            product_category: product.category,
+            product_gender: product.gender,
+          })
+          .eq('id', existingCart.id)
       } else {
-        await base44.entities.CartItem.create({
-          product_id: productId,
-          quantity: 1,
-          product_name: product.name,
-          product_price: product.price,
-          product_image: product.image_url,
-          product_volume: product.volume_ml,
-          product_category: product.category,
-          product_gender: product.gender,
-        });
+        await supabase
+          .from('carts')
+          .insert([{
+            product_id: productId,
+            quantity: 1,
+            product_name: product.name,
+            product_price: effectivePrice,
+            product_image: product.image_url,
+            product_volume: product.volume_ml,
+            product_category: product.category,
+            product_gender: product.gender,
+          }])
       }
     },
     onSuccess: () => {
@@ -171,6 +181,8 @@ export default function ProductDetail() {
     { label: 'Ноты сердца', value: product.heart_notes },
     { label: 'Базовые ноты', value: product.base_notes },
   ].filter(n => n.value);
+  const effectivePrice = getEffectivePrice(product)
+  const discounted = hasDiscount(product)
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 md:py-16">
@@ -181,12 +193,13 @@ export default function ProductDetail() {
         <ArrowLeft className="w-4 h-4" /> Каталог
       </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-        {/* Image */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-start">
+        {/* Image + Notes */}
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
+          className="space-y-8"
         >
           <div className="aspect-square rounded-xl overflow-hidden bg-secondary relative">
             {product.image_url ? (
@@ -197,6 +210,22 @@ export default function ProductDetail() {
               </div>
             )}
             <div className="absolute -bottom-6 -right-6 w-40 h-40 bg-accent/10 rounded-full blur-3xl" />
+          </div>
+
+          <div className="hidden md:block rounded-xl border border-border/70 bg-card/85 p-6 md:p-7 shadow-sm">
+            <p className="font-body text-xs tracking-widest uppercase text-muted-foreground mb-4">Ноты аромата</p>
+            {notes.length > 0 ? (
+              <div className="space-y-4">
+                {notes.map((note) => (
+                  <div key={note.label}>
+                    <p className="font-body text-xs font-semibold mb-1">{note.label}</p>
+                    <p className="font-body text-sm text-muted-foreground">{note.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-muted-foreground">Ноты для этого аромата скоро появятся.</p>
+            )}
           </div>
         </motion.div>
 
@@ -214,13 +243,32 @@ export default function ProductDetail() {
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-4 mb-6">
-            <span className="font-heading text-2xl md:text-3xl font-semibold">
-              {(product.price || 0).toLocaleString('ru-RU')} ₽
-            </span>
-            {product.volume_ml && (
-              <span className="font-body text-sm text-muted-foreground">{product.volume_ml} мл</span>
-            )}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="flex items-baseline gap-4">
+              {discounted && (
+                <span className="font-body text-base text-muted-foreground line-through">
+                  {Number(product.price || 0).toLocaleString('ru-RU')} ₽
+                </span>
+              )}
+              <span className="font-heading text-2xl md:text-3xl font-semibold text-primary">
+                {Number(effectivePrice || 0).toLocaleString('ru-RU')} ₽
+              </span>
+              {product.volume_ml && (
+                <span className="font-body text-sm text-muted-foreground">{product.volume_ml} мл</span>
+              )}
+            </div>
+
+            <Button
+              onClick={() => addToCartMutation.mutate()}
+              disabled={addToCartMutation.isPending}
+              className="h-12 px-7 font-body text-xs md:text-sm tracking-[0.08em] uppercase rounded-lg border border-primary/20 shadow-md gap-2 shrink-0"
+            >
+              {addToCartMutation.isSuccess ? (
+                <><Check className="w-4 h-4" /> Добавлено в корзину</>
+              ) : (
+                <><ShoppingBag className="w-4 h-4" /> Добавить в корзину</>
+              )}
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-8">
@@ -242,6 +290,22 @@ export default function ProductDetail() {
               {product.description}
             </p>
           )}
+
+          <div className="md:hidden rounded-xl border border-border/70 bg-card/85 p-6 shadow-sm mb-8">
+            <p className="font-body text-xs tracking-widest uppercase text-muted-foreground mb-4">Ноты аромата</p>
+            {notes.length > 0 ? (
+              <div className="space-y-4">
+                {notes.map((note) => (
+                  <div key={note.label}>
+                    <p className="font-body text-xs font-semibold mb-1">{note.label}</p>
+                    <p className="font-body text-sm text-muted-foreground">{note.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-muted-foreground">Ноты для этого аромата скоро появятся.</p>
+            )}
+          </div>
 
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
@@ -320,31 +384,6 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {notes.length > 0 && (
-            <div className="space-y-4 mb-10 p-6 rounded-xl bg-secondary/50 border border-border/40">
-              <p className="font-body text-xs tracking-widest uppercase text-muted-foreground">Ноты аромата</p>
-              {notes.map((note) => (
-                <div key={note.label}>
-                  <p className="font-body text-xs font-medium mb-1">{note.label}</p>
-                  <p className="font-body text-sm text-muted-foreground">{note.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-auto">
-            <Button
-              onClick={() => addToCartMutation.mutate()}
-              disabled={addToCartMutation.isPending}
-              className="w-full md:w-auto h-14 px-12 font-body text-sm tracking-wider uppercase rounded-full gap-3"
-            >
-              {addToCartMutation.isSuccess ? (
-                <><Check className="w-4 h-4" /> Добавлено</>
-              ) : (
-                <><ShoppingBag className="w-4 h-4" /> В корзину</>
-              )}
-            </Button>
-          </div>
         </motion.div>
       </div>
     </div>

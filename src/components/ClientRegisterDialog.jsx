@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ADMIN_CODE, createAdminSession, isAdminCode } from '@/lib/adminAuth'
+import { supabase } from '@/api/supabaseClient'
 
 export default function ClientRegisterDialog() {
   const [open, setOpen] = useState(false)
@@ -25,7 +27,7 @@ export default function ClientRegisterDialog() {
   const [contactValue, setContactValue] = useState("")
   const [error, setError] = useState("")
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError("")
 
@@ -35,12 +37,8 @@ export default function ClientRegisterDialog() {
       return
     }
 
-    const usersRaw = localStorage.getItem('users')
-    let users = []
-    try { users = usersRaw ? JSON.parse(usersRaw) : [] } catch (err) { users = [] }
-
     if (mode === 'register') {
-      if (contactType === 'other' && contactValue === 'ADMIN228SS') {
+      if (contactType === 'other' && isAdminCode(contactValue)) {
         setError('Этот код зарезервирован для админки.')
         return
       }
@@ -50,16 +48,42 @@ export default function ClientRegisterDialog() {
         return
       }
 
-      // Check duplicates by contactType + contactValue
-      const exists = users.find(u => u.contactType === contactType && u.contactValue === contactValue)
-      if (exists) {
-        setError('Пользователь с такими данными уже зарегистрирован. Войдите в аккаунт.')
+      try {
+        const { data: existingClients, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('contact_type', contactType)
+          .eq('contact_value', contactValue)
+          .limit(1)
+        if (error) throw error
+        if (existingClients?.length > 0) {
+          setError('Пользователь с такими данными уже зарегистрирован. Войдите в аккаунт.')
+          return
+        }
+      } catch (err) {
+        setError('Не удалось проверить пользователя. Попробуйте снова.')
         return
       }
 
-      const newUser = { id: Date.now().toString(), firstName, lastName, contactType, contactValue }
-      users.push(newUser)
-      try { localStorage.setItem('users', JSON.stringify(users)) } catch (err) {}
+      let newUser
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            contact_type: contactType,
+            contact_value: contactValue,
+          })
+          .select('*')
+          .single()
+        if (error) throw error
+        newUser = data
+      } catch (err) {
+        setError('Не удалось зарегистрироваться. Проверьте соединение и попробуйте снова.')
+        return
+      }
+
       try { localStorage.setItem('clientRegistration', JSON.stringify(newUser)) } catch (err) {}
       // notify other components
       try { window.dispatchEvent(new CustomEvent('clientRegistrationChanged', { detail: newUser })) } catch (e) {}
@@ -67,12 +91,7 @@ export default function ClientRegisterDialog() {
       navigate('/profile')
     } else {
       if (isAdminLogin) {
-        const adminSession = {
-          role: 'admin',
-          code: 'ADMIN228SS',
-          label: 'Администратор',
-          createdAt: new Date().toISOString(),
-        }
+        const adminSession = createAdminSession()
         try { localStorage.setItem('adminSession', JSON.stringify(adminSession)) } catch (err) {}
         try { window.dispatchEvent(new CustomEvent('adminSessionChanged', { detail: adminSession })) } catch (e) {}
         try { window.dispatchEvent(new CustomEvent('clientRegistrationChanged', { detail: null })) } catch (e) {}
@@ -81,8 +100,21 @@ export default function ClientRegisterDialog() {
         return
       }
 
-      // login
-      const found = users.find(u => u.contactType === contactType && u.contactValue === contactValue)
+      let found = null
+      try {
+        const { data: clients, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('contact_type', contactType)
+          .eq('contact_value', contactValue)
+          .limit(1)
+        if (error) throw error
+        found = clients?.[0] || null
+      } catch (err) {
+        setError('Не удалось выполнить вход. Проверьте соединение и попробуйте снова.')
+        return
+      }
+
       if (!found) {
         setError('Пользователь не найден. Проверьте данные или зарегистрируйтесь.')
         return
@@ -102,7 +134,7 @@ export default function ClientRegisterDialog() {
     other: "Контактная информация",
   }
 
-  const isAdminLogin = mode === 'login' && contactType === 'other' && contactValue === 'ADMIN228SS'
+  const isAdminLogin = mode === 'login' && contactType === 'other' && isAdminCode(contactValue)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -122,11 +154,6 @@ export default function ClientRegisterDialog() {
           </div>
           <DialogTitle>{mode === 'register' ? 'Регистрация клиента' : 'Вход в аккаунт'}</DialogTitle>
           <DialogDescription>{mode === 'register' ? 'Укажите имя, фамилию и один способ связи.' : 'Введите способ связи и значение, чтобы войти.'}</DialogDescription>
-          {mode === 'login' && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Для входа в админ-панель выберите <span className="font-medium">Другое</span> и введите код <span className="font-medium">ADMIN228SS</span>.
-            </p>
-          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">

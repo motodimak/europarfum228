@@ -2,62 +2,89 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
+import TextType from '@/components/ui/TextType';
 
-export default function HeroSection({ heroImage }) {
+export default function HeroSection({ heroImages = [] }) {
+  const primaryImage = heroImages[0]
+  const fallbackImage = heroImages[0]?.src || ''
+
   return (
-    <section className="relative min-h-[90vh] md:min-h-screen flex items-center overflow-hidden">
-      {/* Background gradient atmosphere */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/50" />
-      
-      <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-12 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-8 items-center">
-          {/* Text */}
-          <div className="order-2 md:order-1">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              <p className="font-body text-xs tracking-[0.3em] uppercase text-muted-foreground mb-6">
-                Парфюмерия премиум класса
-              </p>
-              <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-semibold leading-[1.1] mb-6">
-                Искусство<br />
-                <em className="font-normal">аромата</em>
-              </h1>
-              <p className="font-body text-base md:text-lg text-muted-foreground max-w-md leading-relaxed mb-10">
-                Откройте мир изысканных композиций, где каждый флакон — это история, рассказанная через ноты и аккорды.
-              </p>
-              <Link
-                to="/catalog"
-                className="inline-flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-full font-body text-sm tracking-wider uppercase hover:opacity-90 transition-opacity"
-              >
-                Смотреть каталог
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </motion.div>
-          </div>
+    <section className="relative min-h-[92vh] md:min-h-screen flex items-center overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,hsl(var(--primary)/0.16),transparent_34%),radial-gradient(circle_at_84%_12%,hsl(var(--accent)/0.18),transparent_34%),linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--background))_44%,hsl(var(--secondary)/0.58)_100%)]" />
 
-          {/* Image */}
-          <div className="order-1 md:order-2 flex justify-center md:justify-end">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.4 }}
-              className="relative w-[280px] md:w-[400px] lg:w-[480px]"
-            >
-              <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src={heroImage}
-                  alt="Luxury perfume bottle"
-                  className="w-full h-full object-cover"
-                />
+      <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-12 py-20 md:py-24 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 36 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="lg:col-span-5"
+          >
+            <div className="rounded-[2rem] border border-border/70 bg-card/78 backdrop-blur-md p-7 md:p-10 shadow-[0_24px_70px_-38px_rgba(14,35,37,0.44)]">
+              <p className="font-body text-xs tracking-[0.32em] uppercase text-muted-foreground mb-6">
+                Доступная парфюмерия высшего класса
+              </p>
+
+              <h1 className="font-heading text-[clamp(2.45rem,6vw,5.4rem)] font-semibold leading-[0.94] tracking-tight text-foreground mb-6">
+                Искусство{' '}
+                <em className="font-normal block md:inline mt-1 md:mt-0">
+                  <TextType
+                    as="span"
+                    text={['аромата', 'настроения', 'шлейфа']}
+                    typingSpeed={110}
+                    deletingSpeed={55}
+                    pauseDuration={1800}
+                    initialDelay={200}
+                    cursorCharacter="▎"
+                    cursorBlinkDuration={0.55}
+                    className="align-baseline"
+                    startOnVisible
+                  />
+                </em>
+              </h1>
+
+              <p className="font-body text-base md:text-lg text-muted-foreground max-w-[34ch] leading-relaxed mb-10">
+                Откройте мир изысканных композиций, где каждый флакон звучит как личная история и раскрывается в идеальном ритме.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  to="/catalog"
+                  className="inline-flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-full font-body text-sm tracking-[0.08em] uppercase hover:opacity-90 transition-opacity"
+                >
+                  Смотреть каталог
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <span className="font-body text-sm text-muted-foreground">200+ редких ароматов</span>
               </div>
-              {/* Decorative blur */}
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-accent/20 rounded-full blur-3xl" />
-              <div className="absolute -top-8 -right-8 w-40 h-40 bg-[hsl(var(--lavender))]/20 rounded-full blur-3xl" />
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, delay: 0.25 }}
+            className="lg:col-span-7"
+          >
+            <div className="relative max-w-[760px] lg:ml-auto flex justify-center lg:justify-end">
+              <div className="absolute -inset-10 bg-[radial-gradient(circle,hsl(var(--primary)/0.18),transparent_64%)] blur-2xl" />
+              <div className="relative w-full max-w-[620px] h-[520px] md:h-[600px] rounded-[2rem] overflow-hidden border border-border/70 bg-card/70">
+                {primaryImage && (
+                  <img
+                    src={primaryImage.src}
+                    alt={primaryImage.alt}
+                    className="w-full h-full object-cover object-center"
+                    loading="eager"
+                    onError={(event) => {
+                      if (fallbackImage && event.currentTarget.src !== fallbackImage) {
+                        event.currentTarget.src = fallbackImage
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>

@@ -1,11 +1,11 @@
-const TELEGRAM_BOT_TOKEN = '8946038303:AAE2aMzb-wx0JyV9cTTw_CUt4zDZNUCus4Y'
+const TELEGRAM_BOT_TOKEN = '8946038303:AAF-MC3wraSKNi6XNtrabi-u6G-zZui7fcE'
 const TELEGRAM_CHAT_ID = '-5144634002'
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`
 
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} ₽`
 
 const buildOrderMessage = ({ fullName, phone, address, deliveryDate, deliveryTimeSlot, paymentMethod, total, items, clientContact, clientContactType }) => {
-  const header = ['📦 Новая заявка на заказ']
+  const header = ['📦 Новая заявка на заказ 0_0']
   const clientInfo = [`Имя: ${fullName || '—'}`]
   if (phone) {
     clientInfo.push(`Телефон: ${phone}`)
