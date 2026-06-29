@@ -3,9 +3,17 @@ import { useAuth } from '@/lib/AuthContext'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/api/supabaseClient'
-import { Package, Calendar, DollarSign, MapPin } from 'lucide-react'
+import { Package, Calendar, MapPin } from 'lucide-react'
 import { getReviewsByUser } from '@/lib/reviewStore'
 import ReviewStars from '@/components/ReviewStars'
+
+const formatRub = (value) => {
+  const amount = Number(value || 0)
+  return amount.toLocaleString('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
 
 export default function Profile() {
   const { user, isAuthenticated } = useAuth()
@@ -168,8 +176,7 @@ export default function Profile() {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-sm flex items-center gap-1 justify-end">
-                        <DollarSign className="w-4 h-4" />
-                        {order.total_amount?.toFixed(2) || '0.00'} ₽
+                        {formatRub(order.total_amount)} ₽
                       </p>
                     </div>
                   </div>
