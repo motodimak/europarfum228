@@ -25,6 +25,7 @@ const categoryLabels = {
 };
 
 export default function ProductCard({ product, index = 0 }) {
+  const resolvedProductId = product?.id || product?.product_id
   const hasSale = product.sale_price && product.sale_price < product.price
   const discountPercent = hasSale
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
@@ -38,7 +39,8 @@ export default function ProductCard({ product, index = 0 }) {
       className="h-full"
     >
       <Link
-        to={`/product/${product.id}`}
+        to={resolvedProductId ? `/product/${resolvedProductId}` : '/catalog'}
+        state={{ product }}
         className="group block h-full rounded-2xl border border-border/85 bg-card/88 backdrop-blur-sm p-3 md:p-4 shadow-[0_12px_34px_-22px_rgba(8,24,28,0.6)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_24px_50px_-24px_rgba(8,24,28,0.68)]"
       >
         <div className="aspect-square overflow-hidden rounded-xl bg-secondary mb-4 relative">

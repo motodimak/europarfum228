@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,14 +37,20 @@ const genderLabels = {
 };
 
 export default function ProductDetail() {
+  const location = useLocation();
   const { id } = useParams();
-  const productId = String(id || '').trim().replace(/\/+$/, '');
+  const productFromState = location.state?.product || null;
+  const productId = decodeURIComponent(String(id || '').trim().replace(/\/+$/, ''));
 
   const queryClient = useQueryClient();
 
-  const { data: product = null, isLoading, error } = useQuery({
+  const { data: product = null, isLoading } = useQuery({
     queryKey: ['product', productId],
     queryFn: async () => {
+      if (!productId) {
+        return productFromState
+      }
+
       // Fetch product from Supabase using regular select (not .single())
       const { data, error } = await supabase
         .from('products')
@@ -58,6 +64,9 @@ export default function ProductDetail() {
       
       if (!data || data.length === 0) {
         console.warn('[ProductDetail] No rows found for ID:', productId);
+        if (productFromState && (productFromState.id === productId || productFromState.product_id === productId)) {
+          return productFromState
+        }
         return null;
       }
       
