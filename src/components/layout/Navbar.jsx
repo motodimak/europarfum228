@@ -1,14 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes'
 import ProfileButton from '@/components/ProfileButton'
+import GooeyNav from '@/components/navigation/GooeyNav'
+import ShinyText from '@/components/ui/ShinyText'
+
+const NAV_ITEMS = [
+  { label: 'Главная', href: '/' },
+  { label: 'Каталог', href: '/catalog' },
+  { label: 'Профиль', href: '/profile' },
+]
 
 export default function Navbar({ cartCount = 0, onCartOpen }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false)
   const { theme, setTheme } = useTheme()
+  const navItems = useMemo(() => NAV_ITEMS, [])
 
   useEffect(() => {
     setMounted(true)
@@ -30,13 +39,21 @@ export default function Navbar({ cartCount = 0, onCartOpen }) {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
         <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-16 md:h-20 flex items-center justify-between">
           <Link to="/" className="font-heading text-xl md:text-2xl font-semibold tracking-tight">
-            EUROPA PARFUM
+            <ShinyText
+              text="EUROPA PARFUM"
+              speed={2}
+              delay={0.08}
+              color="hsl(var(--foreground) / 0.62)"
+              shineColor="hsl(var(--primary))"
+              spread={106}
+              direction="left"
+              yoyo={false}
+              pauseOnHover={false}
+            />
           </Link>
 
-          <div className="hidden md:flex items-center gap-12 font-body text-sm tracking-widest uppercase">
-            <Link to="/" className="hover:text-primary transition-colors duration-300">Главная</Link>
-            <Link to="/catalog" className="hover:text-primary transition-colors duration-300">Каталог</Link>
-            <Link to="/profile" className="hover:text-primary transition-colors duration-300">Профиль</Link>
+          <div className="hidden md:flex items-center justify-center flex-1 px-8">
+            <GooeyNav items={navItems} initialActiveIndex={0} />
           </div>
 
           <div className="flex items-center gap-4">
@@ -84,12 +101,16 @@ export default function Navbar({ cartCount = 0, onCartOpen }) {
               <X className="w-6 h-6" />
             </button>
             <div className="flex flex-col items-center gap-10 font-heading text-3xl">
-              <Link to="/" onClick={() => setMenuOpen(false)} className="hover:opacity-60 transition-opacity">
-                Главная
-              </Link>
-              <Link to="/catalog" onClick={() => setMenuOpen(false)} className="hover:opacity-60 transition-opacity">
-                Каталог
-              </Link>
+              {navItems.map(item => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="hover:opacity-60 transition-opacity"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           </motion.div>
         )}

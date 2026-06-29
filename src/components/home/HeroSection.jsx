@@ -4,7 +4,10 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import TextType from '@/components/ui/TextType';
 
-export default function HeroSection({ heroImage }) {
+export default function HeroSection({ heroImages = [] }) {
+  const primaryImage = heroImages[0]
+  const fallbackImage = heroImages[0]?.src || ''
+
   return (
     <section className="relative min-h-[92vh] md:min-h-screen flex items-center overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,hsl(var(--primary)/0.16),transparent_34%),radial-gradient(circle_at_84%_12%,hsl(var(--accent)/0.18),transparent_34%),linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--background))_44%,hsl(var(--secondary)/0.58)_100%)]" />
@@ -63,16 +66,23 @@ export default function HeroSection({ heroImage }) {
             transition={{ duration: 0.9, delay: 0.25 }}
             className="lg:col-span-7"
           >
-            <div className="relative max-w-[760px] lg:ml-auto">
-              <div className="absolute -inset-10 bg-[radial-gradient(circle,hsl(var(--primary)/0.2),transparent_64%)] blur-2xl" />
-              <div className="relative aspect-[4/5] md:aspect-[7/6] rounded-[2rem] overflow-hidden shadow-[0_35px_100px_-45px_rgba(12,33,34,0.56)] ring-1 ring-white/55">
-                <img
-                  src={heroImage}
-                  alt="Luxury perfume bottle"
-                  className="w-full h-full object-cover"
-                />
+            <div className="relative max-w-[760px] lg:ml-auto flex justify-center lg:justify-end">
+              <div className="absolute -inset-10 bg-[radial-gradient(circle,hsl(var(--primary)/0.18),transparent_64%)] blur-2xl" />
+              <div className="relative w-full max-w-[620px] h-[520px] md:h-[600px] rounded-[2rem] overflow-hidden border border-border/70 bg-card/70">
+                {primaryImage && (
+                  <img
+                    src={primaryImage.src}
+                    alt={primaryImage.alt}
+                    className="w-full h-full object-cover object-center"
+                    loading="eager"
+                    onError={(event) => {
+                      if (fallbackImage && event.currentTarget.src !== fallbackImage) {
+                        event.currentTarget.src = fallbackImage
+                      }
+                    }}
+                  />
+                )}
               </div>
-
             </div>
           </motion.div>
         </div>

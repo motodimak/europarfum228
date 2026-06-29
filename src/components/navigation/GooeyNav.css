@@ -1,0 +1,201 @@
+:root {
+  --linear-ease: linear(
+    0,
+    0.068,
+    0.19 2.7%,
+    0.804 8.1%,
+    1.037,
+    1.199 13.2%,
+    1.245,
+    1.27 15.8%,
+    1.274,
+    1.272 17.4%,
+    1.249 19.1%,
+    0.996 28%,
+    0.949,
+    0.928 33.3%,
+    0.926,
+    0.933 36.8%,
+    1.001 45.6%,
+    1.013,
+    1.019 50.8%,
+    1.018 54.4%,
+    1 63.1%,
+    0.995 68%,
+    1.001 85%,
+    1
+  );
+}
+
+.gooey-nav-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gooey-nav-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.38rem;
+  border-radius: 9999px;
+  background:
+    linear-gradient(180deg, hsl(var(--background) / 0.74), hsl(var(--secondary) / 0.42)),
+    hsl(var(--background) / 0.7);
+  border: 1px solid hsl(var(--border) / 0.55);
+  box-shadow:
+    0 16px 38px hsl(var(--foreground) / 0.08),
+    inset 0 1px 0 hsl(var(--foreground) / 0.03);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+
+.dark .gooey-nav-shell {
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.82)),
+    hsl(var(--background) / 0.72);
+  box-shadow:
+    0 22px 58px hsl(0 0% 0% / 0.34),
+    inset 0 1px 0 hsl(0 0% 100% / 0.05);
+}
+
+.gooey-nav-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.92));
+  box-shadow:
+    0 10px 24px hsl(var(--primary) / 0.22),
+    inset 0 1px 0 hsl(0 0% 100% / 0.18);
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  opacity: 0.96;
+  pointer-events: none;
+}
+
+.gooey-nav-list {
+  display: flex;
+  gap: 0.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  z-index: 3;
+}
+
+.gooey-nav-list li {
+  position: relative;
+  border-radius: 9999px;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  transition:
+    color 260ms ease,
+    box-shadow 260ms ease,
+    transform 260ms ease;
+  box-shadow: 0 0 0 1px transparent;
+}
+
+.gooey-nav-list li:hover {
+  transform: translateY(-1px);
+  color: hsl(var(--foreground));
+}
+
+.gooey-nav-list li a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  padding: 0.74rem 1.08rem;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: color 260ms ease, transform 260ms ease;
+}
+
+.gooey-nav-list li:focus-within {
+  box-shadow: 0 0 0 1px hsl(var(--ring) / 0.45);
+}
+
+.gooey-nav-list li.active {
+  color: hsl(var(--primary-foreground));
+}
+
+.gooey-nav-list li.active a {
+  color: hsl(var(--primary-foreground));
+}
+
+.gooey-nav-list li.active:hover {
+  transform: none;
+}
+
+.gooey-nav-list li.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent) / 0.88));
+  opacity: 1;
+  z-index: 0;
+}
+
+.gooey-nav-list li.active::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.08), hsl(0 0% 100% / 0));
+  z-index: 0;
+}
+
+.gooey-nav-ripple {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: hsl(0 0% 100% / 0.56);
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  animation: gooeyNavRipple 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes gooeyNavRipple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+
+  65% {
+    transform: translate(-50%, -50%) scale(14);
+    opacity: 0.12;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(18);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gooey-nav-shell,
+  .gooey-nav-list li,
+  .gooey-nav-indicator,
+  .gooey-nav-ripple {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

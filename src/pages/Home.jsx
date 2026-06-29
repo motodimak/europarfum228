@@ -6,6 +6,8 @@ import CategoriesSection from '../components/home/CategoriesSection';
 import PopularPerfumesSection from '../components/home/PopularPerfumesSection';
 
 const HERO_IMAGE = 'https://media.base44.com/images/public/69ede4f3bbf6ffb09c345510/267f53f86_generated_84f14b21.png';
+const HERO_IMAGE_2 = '/hero/hero-2.jpg';
+const HERO_IMAGE_3 = '/hero/hero-3.jpg';
 
 const fetchAllProducts = async () => {
   const { data, error } = await supabase
@@ -35,13 +37,30 @@ export default function Home() {
 
   const mergedProducts = React.useMemo(() => remoteProducts, [remoteProducts])
 
+  const heroImages = React.useMemo(() => {
+    return [
+      {
+        src: HERO_IMAGE,
+        alt: 'Luxury perfume bottle',
+      },
+      {
+        src: HERO_IMAGE_2,
+        alt: 'Light perfume bottle on silk',
+      },
+      {
+        src: HERO_IMAGE_3,
+        alt: 'Blue perfume bottle on stone',
+      },
+    ]
+  }, [])
+
   const popularProducts = React.useMemo(() => {
     return mergedProducts.filter((product) => isEnabledFlag(product.popular)).slice(0, 8)
   }, [mergedProducts])
 
   return (
     <div>
-      <HeroSection heroImage={HERO_IMAGE} />
+      <HeroSection heroImages={heroImages} />
       {popularProducts.length > 0 && <PopularPerfumesSection products={popularProducts} />}
       <CategoriesSection />
     </div>

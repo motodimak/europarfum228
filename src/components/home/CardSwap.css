@@ -1,0 +1,93 @@
+.card-swap-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  perspective: 1200px;
+  overflow: visible;
+}
+
+.card-swap-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 2rem;
+  border: 1px solid hsl(var(--border) / 0.8);
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.94));
+  transform-style: preserve-3d;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow:
+    0 26px 80px -34px hsl(var(--foreground) / 0.38),
+    inset 0 1px 0 hsl(var(--foreground) / 0.05);
+  overflow: hidden;
+}
+
+.card-swap-card__imageWrap {
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 24%, hsl(var(--primary) / 0.1), transparent 28%),
+    radial-gradient(circle at 75% 18%, hsl(var(--accent) / 0.1), transparent 24%),
+    linear-gradient(180deg, hsl(var(--background) / 0.9), hsl(var(--secondary) / 0.35));
+}
+
+.dark .card-swap-card__imageWrap {
+  background:
+    radial-gradient(circle at 28% 22%, hsl(var(--primary) / 0.2), transparent 32%),
+    radial-gradient(circle at 74% 16%, hsl(var(--accent) / 0.14), transparent 26%),
+    linear-gradient(180deg, hsl(var(--card) / 0.95), hsl(var(--background) / 0.92));
+}
+
+.card-swap-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 50%;
+  display: block;
+  filter: drop-shadow(0 14px 18px hsl(var(--foreground) / 0.1));
+}
+
+.card-swap-card__label {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 9999px;
+  background: hsl(var(--background) / 0.82);
+  border: 1px solid hsl(var(--border) / 0.75);
+  backdrop-filter: blur(14px);
+}
+
+.dark .card-swap-card__label {
+  background: hsl(var(--card) / 0.74);
+}
+
+.card-swap-card__title {
+  font-size: 0.78rem;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+}
+
+.card-swap-card__subtitle {
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (max-width: 1024px) {
+  .card-swap-card {
+    border-radius: 1.75rem;
+  }
+}
